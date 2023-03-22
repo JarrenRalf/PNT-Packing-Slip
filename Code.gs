@@ -576,6 +576,11 @@ function clearExportPage()
     sheet.clear(); 
 }
 
+function createTrigger()
+{
+  ScriptApp.newTrigger('onChange').forSpreadsheet('1QIKO0KcWPYoP4yR5c22jvbY0Ldsx9tO4MqyrMiTTzBc').onChange().create() // This is an installable onChange trigger
+}
+
 /**
  * This function displays the shipping calculator as a sidebar.
  * 
@@ -586,6 +591,11 @@ function displayShippingCalculator()
   var sidebar = HtmlService.createHtmlOutputFromFile("shippingCalculator.html");
   sidebar.setTitle("Calculator").setWidth(600);
   SpreadsheetApp.getUi().showSidebar(sidebar);
+}
+
+function deleteTriggers()
+{
+  ScriptApp.getProjectTriggers().map(trigger => ScriptApp.deleteTrigger(trigger));
 }
 
 /**
