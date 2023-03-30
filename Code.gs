@@ -1162,7 +1162,7 @@ function packingSlip_BackOrder()
   const spreadsheet = SpreadsheetApp.getActive();
   const sheet = spreadsheet.getActiveSheet();
 
-  if (sheet.getSheetName() !== 'Invoice')
+  if (sheet.getSheetName() !== 'Invoice' && sheet.getSheetName() !== 'Packing Slip')
   {
     spreadsheet.toast('You must be on the Invoice sheet to run this function. Please try again.')
     spreadsheet.getSheetByName('Invoice').activate();
@@ -1237,7 +1237,7 @@ function packingSlip_Complete()
   const spreadsheet = SpreadsheetApp.getActive();
   const sheet = spreadsheet.getActiveSheet();
 
-  if (sheet.getSheetName() !== 'Invoice')
+  if (sheet.getSheetName() !== 'Invoice' && sheet.getSheetName() !== 'Packing Slip')
   {
     spreadsheet.toast('You must be on the Invoice sheet to run this function. Please try again.')
     spreadsheet.getSheetByName('Invoice').activate();
@@ -1317,15 +1317,16 @@ function packingSlip_Complete()
 function packingSlip_HFPU()
 {
   const spreadsheet = SpreadsheetApp.getActive();
-  const sheet = spreadsheet.getActiveSheet();
+  const activeSheet = spreadsheet.getActiveSheet();
 
-  if (sheet.getSheetName() !== 'Invoice')
+  if (activeSheet.getSheetName() !== 'Invoice' && activeSheet.getSheetName() !== 'Packing Slip')
   {
     spreadsheet.toast('You must be on the Invoice sheet to run this function. Please try again.')
     spreadsheet.getSheetByName('Invoice').activate();
   }
   else
   {
+    const sheet = spreadsheet.getSheetByName('Invoice')
     const currentOrder = sheet.getSheetValues(1, 9, 1, 1)[0][0]
     const statusPage = spreadsheet.getSheetByName('Status Page')
     const range = statusPage.getRange(3, 1, statusPage.getLastRow() - 2, 4);
