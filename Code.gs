@@ -203,6 +203,8 @@ function onOpen()
     //.addItem('Display Shipping Calculator', 'displayShippingCalculator')
     .addSeparator()
     .addItem('Clear Export Page', 'clearExportPage')
+    .addSeparator()
+    .addItem('Download Packing Slip and Invoice', 'downloadButton')
     .addToUi();
 
   applyFormatting()
@@ -593,6 +595,24 @@ function displayShippingCalculator()
   SpreadsheetApp.getUi().showSidebar(sidebar);
 }
 
+/**
+ * This function deletes the two pdf files that the user has created in the google drive.
+ * 
+ * @param {String} id1 : The file id of one of the files
+ * @param {String} id2 : The file id of the other file
+ * @author Jarren Ralf
+ */
+function deleteFiles(id1, id2)
+{
+  DriveApp.getFileById(id1).setTrashed(true)
+  DriveApp.getFileById(id2).setTrashed(true)
+}
+
+/**
+ * This function deletes of the Triggers associated with the user in regards to this project.
+ * 
+ * @author Jarren Ralf
+ */
 function deleteTriggers()
 {
   ScriptApp.getProjectTriggers().map(trigger => ScriptApp.deleteTrigger(trigger));
@@ -608,6 +628,31 @@ function deleteTriggers()
 function doesPhoneNumberStartWithOne(p)
 {
   return p.length === 11 && p[0] === '1';
+}
+
+/**
+ * This function launches a modal dialog box which allows the user to click a download button, which will lead to 
+ * two pdf files being downloaded.
+ * 
+ * @author Jarren Ralf
+ */
+function downloadButton()
+{
+  const spreadsheet = SpreadsheetApp.getActive()
+  const invoiceSheet = spreadsheet.getSheetByName('Invoice')
+  const packingSlipSheet = spreadsheet.getSheetByName('Packing Slip')
+  const customerName = invoiceSheet.getSheetValues(8, 6, 1, 1)[0][0]
+  const invoicePdf = getAsBlob(spreadsheet, invoiceSheet).getAs('application/pdf').setName(customerName + "_Invoice.pdf")
+  const packingSlipPdf = getAsBlob(spreadsheet, packingSlipSheet).getAs('application/pdf').setName(customerName + "_PackingSlip.pdf")
+  var htmlTemplate = HtmlService.createTemplateFromFile('DownloadButton');
+  const invoiceFile = DriveApp.createFile(invoicePdf)
+  const packingSlipFile = DriveApp.createFile(packingSlipPdf)
+  htmlTemplate.url1 = invoiceFile.getDownloadUrl();
+  htmlTemplate.url2 = packingSlipFile.getDownloadUrl();
+  htmlTemplate.fileId1 = invoiceFile.getId();
+  htmlTemplate.fileId2 = packingSlipFile.getId();
+  var html = htmlTemplate.evaluate().setWidth(250).setHeight(50);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Export');
 }
 
 /**
@@ -674,7 +719,7 @@ function emailPackingSlip(comments)
     var emailSignature = '<p>If you have any questions, please click reply or send an email to: <a href="mailto:websales@pacificnetandtwine.com?subject=RE: [Pacific Net %26 Twine Ltd] ' + 
       orderNumber + ' placed by ' + billingName + '">websales@pacificnetandtwine.com</a></p>'
     var message = templateHtml.evaluate().append(emailSignature).getContent(); // Get the contents of the html document
-    var packingSlipPDF = getAsBlob(spreadsheet.getUrl(), packingSlip).getAs('application/pdf').setName(orderNumber + ".pdf")
+    var packingSlipPDF = getAsBlob(spreadsheet, packingSlip).getAs('application/pdf').setName(orderNumber + ".pdf")
 
     // Fire an email with following chosen parameters
     GmailApp.sendEmail(recipientEmail, 
@@ -825,21 +870,62 @@ function exportData(importData, exportSheet, spreadsheet, shippingAmount, itemVa
 }
 
 /**
+ * This function reformats a valid phone number into (###) ###-####, unless there are too many/few digits in the number, in which case the original string is returned.
+ * It handles inputs that include leading ones and pluses, as well as strings that contain or don't contain parenthesis.  
+ * 
+ * @param {Number} num : The given phone number
+ * @return Returns a reformatted phone number
+ * @author Jarren Ralf
+ */
+function formatPhoneNumber(num)
+{
+  var ph = num.toString().trim().replace(/['\])}[\s{(+-]/g, ''); // Remove any brackets, braces, parenthesis, apostrophes, dashes, plus symbols, and blank spaces
+
+  return (ph.length === 10 && ph[0] !== '1') ? '(' + ph.substring(0, 3) + ') ' + ph.substring(3, 6) + '-' + ph.substring(6) : 
+         (ph.length === 11 && ph[0] === '1') ? '(' + ph.substring(1, 4) + ') ' + ph.substring(4, 7) + '-' + ph.substring(7) : num;
+}
+
+/**
+ * This function reformats a valid canadian postal code into A1A 1A1, unless there are too many/few digits in the number, in which case the original string is returned.
+ * 
+ * @param {Number} num : The given postal code
+ * @return Returns a reformatted candian postal code
+ * @author Jarren Ralf
+ */
+function formatPostalCode(num)
+{
+  var postCode = num.toString().trim().toUpperCase(); 
+
+  return (postCode.length === 6) ? postCode.substring(0, 3) + ' ' + postCode.substring(3, 6) : postCode;
+}
+
+/**
+ * This function converts the given sheet into a BLOB object. Based on the second argument, namely which sheet is getting converted, certain parameters are 
+ * set that lead to the BLOB object being stored as a csv or pdf file.
+ * 
  * @license MIT
  * 
  * © 2020 xfanatical.com. All Rights Reserved.
+ * @param {Spreadsheet} spreadsheet : The specific spreadsheet that will be used to convert the export page into a BLOB (Binary Large Object)
+ * @return The packing slip sheet as a BLOB object that will eventually get converted to pdf document that will be attached to an email sent to the customer
  * @author Jason Huang
  */
-function getAsBlob(url, sheet)
+function getAsBlob(spreadsheet, sheet)
 {
   // A credit to https://gist.github.com/Spencer-Easton/78f9867a691e549c9c70
   // these parameters are reverse-engineered (not officially documented by Google)
   // they may break overtime.
-  var exportUrl = url.replace(/\/edit.*$/, '') + '/export?exportFormat=pdf&format=pdf&size=LETTER&portrait=true&'
-      +'fitw=true&top_margin=0.75&bottom_margin=0.75&left_margin=0.25&right_margin=0.25'           
-      + '&sheetnames=false&printtitle=false&pagenum=UNDEFINED' // change it to CENTER to print page numbers
-      + '&gridlines=false&fzr=FALSE&gid=' + sheet.getSheetId()
-  var response
+  var exportUrl = spreadsheet.getUrl().replace(/\/edit.*$/, '') + '/export?'
+      + 'exportFormat=pdf'
+      + '&format=pdf'
+      + '&size=LETTER'
+      + '&portrait=true'
+      + '&fitw=true&top_margin=0.25&bottom_margin=0.25&left_margin=0.25&right_margin=0.25'           
+      + '&sheetnames=false&printtitle=false&pagenum=UNDEFINED'
+      + '&gridlines=false&fzr=FALSE'
+      + '&gid=' + sheet.getSheetId();
+
+  var response;
 
   for (var i = 0; i < 5; i++)
   {
@@ -858,7 +944,7 @@ function getAsBlob(url, sheet)
   
   if (i === 5)
     throw new Error('Printing failed. Too many sheets to print.');
-  
+
   return response.getBlob()
 }
 
@@ -1120,36 +1206,6 @@ function isNotFirstOrder(i)
 function isSKU_NotBlank(data)
 {
   return isNotBlank(data[20]);
-}
-
-/**
- * This function reformats a valid phone number into (###) ###-####, unless there are too many/few digits in the number, in which case the original string is returned.
- * It handles inputs that include leading ones and pluses, as well as strings that contain or don't contain parenthesis.  
- * 
- * @param {Number} num : The given phone number
- * @return Returns a reformatted phone number
- * @author Jarren Ralf
- */
-function formatPhoneNumber(num)
-{
-  var ph = num.toString().trim().replace(/['\])}[\s{(+-]/g, ''); // Remove any brackets, braces, parenthesis, apostrophes, dashes, plus symbols, and blank spaces
-
-  return (ph.length === 10 && ph[0] !== '1') ? '(' + ph.substring(0, 3) + ') ' + ph.substring(3, 6) + '-' + ph.substring(6) : 
-         (ph.length === 11 && ph[0] === '1') ? '(' + ph.substring(1, 4) + ') ' + ph.substring(4, 7) + '-' + ph.substring(7) : num;
-}
-
-/**
- * This function reformats a valid canadian postal code into A1A 1A1, unless there are too many/few digits in the number, in which case the original string is returned.
- * 
- * @param {Number} num : The given postal code
- * @return Returns a reformatted candian postal code
- * @author Jarren Ralf
- */
-function formatPostalCode(num)
-{
-  var postCode = num.toString().trim().toUpperCase(); 
-
-  return (postCode.length === 6) ? postCode.substring(0, 3) + ' ' + postCode.substring(3, 6) : postCode;
 }
 
 /**
