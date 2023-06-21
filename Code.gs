@@ -207,7 +207,8 @@ function onOpen()
     .addItem('Download Packing Slip and Invoice', 'downloadButton')
     .addToUi();
 
-  resetArrayFormulaPackingSlip();
+  resetArrayFormula_PackingSlip();
+  resetNamedRange_Invoice()
   applyFormatting()
 }
 
@@ -584,7 +585,7 @@ function clearExportPage()
  * 
  * @author Jarren Ralf
  */
-function createTrigger()
+function createTriggers()
 {
   ScriptApp.newTrigger('onChange').forSpreadsheet('1QIKO0KcWPYoP4yR5c22jvbY0Ldsx9tO4MqyrMiTTzBc').onChange().create() // This is an installable onChange trigger
 }
@@ -1687,12 +1688,23 @@ function removeCompleteOrdersButton()
  * 
  * @author Jarren Ralf
  */
-function resetArrayFormulaPackingSlip()
+function resetArrayFormula_PackingSlip()
 {
   SpreadsheetApp.getActive().getSheetByName('Packing Slip').getRange(15, 1, 1, 8).setFormulas([[
     '=ARRAYFORMULA(Invoice!$C17:C$34&char(10)&if(Invoice!$C17:C$34=\"\",\"\",\"Sku# \"&Invoice!$B17:B$34))', '', '', '', '', '', '',
     '=ARRAYFORMULA(IFERROR(query(SPLIT(Invoice!A17:$A34, \" \"), \"SELECT Col1\"),\"\"))'
   ]])
+}
+
+/**
+ * This function resets the named range on the Invoice that sums the item totals.
+ * 
+ * @author Jarren Ralf
+ */
+function resetNamedRange_Invoice()
+{
+  const invoiceSheet = SpreadsheetApp.getActive().getSheetByName('Invoice')
+  invoiceSheet.getNamedRanges().find(range => range.getName() === 'Item_Totals_Page_1').setRange(invoiceSheet.getRange('Invoice!I17:I48'))
 }
 
 /**
