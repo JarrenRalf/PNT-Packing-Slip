@@ -207,6 +207,7 @@ function onOpen()
     .addItem('Download Packing Slip and Invoice', 'downloadButton')
     .addToUi();
 
+  resetArrayFormulaPackingSlip();
   applyFormatting()
 }
 
@@ -271,7 +272,7 @@ function applyFormatting(sheets)
 
       subtotalAmount += ')';
 
-      const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('https://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
+      const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('http://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
 
       const pntAddress = SpreadsheetApp.newRichTextValue().setText('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
         .setLinkUrl(91, 117, 'https://www.pacificnetandtwine.com/').build()
@@ -444,7 +445,7 @@ function applyFormattingToPackingSlip(sheet, spreadsheet, shippingAmount)
   const col = 9; // Number of columns on the packing slip
   const numItemsOnPageOne = 32;
   const boldTextStyle = SpreadsheetApp.newTextStyle().setBold(true).setFontSize(12).build();
-  const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('https://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
+  const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('http://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
   const pntAddress = SpreadsheetApp.newRichTextValue().setText('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
     .setLinkUrl(91, 117, 'https://www.pacificnetandtwine.com/').build()
   const shipDate = SpreadsheetApp.newRichTextValue().setText('Ship Date: ' + Utilities.formatDate(new Date(), spreadsheet.getSpreadsheetTimeZone(), "dd MMMM yyyy"))
@@ -578,6 +579,11 @@ function clearExportPage()
     sheet.clear(); 
 }
 
+/**
+ * This function creates the triggers associated with this spreadsheet.
+ * 
+ * @author Jarren Ralf
+ */
 function createTrigger()
 {
   ScriptApp.newTrigger('onChange').forSpreadsheet('1QIKO0KcWPYoP4yR5c22jvbY0Ldsx9tO4MqyrMiTTzBc').onChange().create() // This is an installable onChange trigger
@@ -1677,6 +1683,19 @@ function removeCompleteOrdersButton()
 }
 
 /**
+ * This function resets the array formulas on the Packing Slip that sets the items and quantities derived from the Invoice sheet.
+ * 
+ * @author Jarren Ralf
+ */
+function resetArrayFormulaPackingSlip()
+{
+  SpreadsheetApp.getActive().getSheetByName('Packing Slip').getRange(15, 1, 1, 8).setFormulas([[
+    '=ARRAYFORMULA(Invoice!$C17:C$34&char(10)&if(Invoice!$C17:C$34=\"\",\"\",\"Sku# \"&Invoice!$B17:B$34))', '', '', '', '', '', '',
+    '=ARRAYFORMULA(IFERROR(query(SPLIT(Invoice!A17:$A34, \" \"), \"SELECT Col1\"),\"\"))'
+  ]])
+}
+
+/**
  * This function...
  * 
  * @author Jarren Ralf
@@ -1988,14 +2007,15 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
       if (shopifyData[0][41] === 'BC') 
         checks[0][0] = 0.12;
       else if (shopifyData[0][41] === 'AB' || shopifyData[0][41] === 'NT' || shopifyData[0][41] === 'NU' || 
-               shopifyData[0][41] === 'YT' || shopifyData[0][41] === 'QC' || shopifyData[0][41] === 'MB')
+               shopifyData[0][41] === 'YT' || shopifyData[0][41] === 'QC' || shopifyData[0][41] === 'MB' ||
+               shopifyData[0][41] === 'SK')
         checks[1][0] = 0.05;
       else if (shopifyData[0][41] === 'NS' || shopifyData[0][41] === 'NB' || shopifyData[0][41] === 'NL' || shopifyData[0][41] === 'PE')
         checks[2][0] = 0.15;
       else if (shopifyData[0][41] === 'ON')
         checks[3][0] = 0.13;
-      else if (shopifyData[0][41] === 'SK')
-        checks[4][0] = 0.11;
+      // else if (shopifyData[0][41] === 'SK')
+      //   checks[4][0] = 0.11;
     }
   }
 
