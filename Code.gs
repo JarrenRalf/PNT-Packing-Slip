@@ -1,5 +1,6 @@
 /**
- * This function handles the onChange trigger event. It checks 
+ * This function handles the onChange trigger event. It checks if there is a new sheet being inserted, which likely means shopify data is being imported. 
+ * It also checks if rows on the Invoice are deleted, and it makes sure to keep the format of the page intact for printing purposes.
  * 
  * @param {Event} e : The event object 
  */
@@ -8,15 +9,17 @@ function onChange(e)
   if (e.changeType === 'INSERT_GRID') // A new sheet has been created
     processImportedData(e)
   else if (e.changeType === 'REMOVE_ROW') // A row has been deleted
-    reformatPackingSlip(e)
+    reformatInvoice(e)
 }
 
 /**
- * This function handles the onEdit trigger event. It checks ...
+ * This function handles the onEdit trigger event. It operates the "radio buttons" on the Calculator, which are just checkboxes that set the tax rates.
+ * It checks if the user is on the Status Page and is trying to populate the Invoice sheet with an active or completed order. It also makes various 
+ * changes when the user edits the Invoice sheet.
  * 
  * @param {Event} e : The event object 
  */
-function onEdit(e)
+function installedOnEdit(e)
 {
   var range = e.range; 
   var row = range.rowStart;
@@ -37,22 +40,30 @@ function onEdit(e)
     */
     if (sheetName === 'Calculator'  && col == 4 && row > 2 && row < 9)
       checkboxRange.setValues(checkboxRange.getValues().map((check, index) => (check[0] >= 0 && index != row - 3) ? [false] : check))
-    else if (sheetName === 'Status Page' && col == 2 && row > 1)
+    else if (sheetName === 'Status Page')
     {
-      range.uncheck()
-      const ui = SpreadsheetApp.getUi();
-      const orderNum = range.offset(0, -1).getValue()
-      const fullData = spreadsheet.getSheetByName('All_Active_Orders').getDataRange().getValues()
-      const header = fullData.shift()
-      const shopifyData = fullData.filter(val => val[0] === orderNum);
-      shopifyData.unshift(header)
-
-      if (shopifyData.length === 1)
-        ui.alert('Order Not Found', 'Use File -> Import to generate a Invoice for ' + orderNum + '.', ui.ButtonSet.OK)
-      else
+      if (col == 2 && row > 1)
       {
-        updatePackingSlip(shopifyData, shopifyData.length, shopifyData[0].length, spreadsheet)
-        spreadsheet.getSheetByName('Invoice').getRange('I5').activate();
+        range.uncheck()
+        const ui = SpreadsheetApp.getUi();
+        const orderNum = range.offset(0, -1).getValue()
+        const fullData = spreadsheet.getSheetByName('All_Active_Orders').getDataRange().getValues()
+        const header = fullData.shift()
+        const shopifyData = fullData.filter(val => val[0] === orderNum);
+        shopifyData.unshift(header)
+
+        if (shopifyData.length === 1)
+          ui.alert('Order Not Found', 'Use File -> Import to generate a Invoice for ' + orderNum + '.', ui.ButtonSet.OK)
+        else
+        {
+          updateInvoice(shopifyData, shopifyData.length, shopifyData[0].length, spreadsheet)
+          spreadsheet.getSheetByName('Invoice').getRange('I5').activate();
+        }
+      }
+      else if (col == 1 && row == 1)
+      {
+        setInvoiceValues(e.value, spreadsheet);
+        (e.value != undefined) ? range.setValue(spreadsheet.getSheetByName('Completed Orders').getSheetValues(1, 1, 1, 1)[0][0]) : range.setValue(e.oldValue);
       }
     }
     else if (sheetName === 'Invoice')
@@ -89,7 +100,7 @@ function onEdit(e)
             if (shopifyData[0][41] === 'BC') 
               checks[0][0] = 0.12;
             else if (shopifyData[0][41] === 'AB' || shopifyData[0][41] === 'NT' || shopifyData[0][41] === 'NU' || 
-                    shopifyData[0][41] === 'YT' || shopifyData[0][41] === 'QC' || shopifyData[0][41] === 'MB')
+                     shopifyData[0][41] === 'YT' || shopifyData[0][41] === 'QC' || shopifyData[0][41] === 'MB')
               checks[1][0] = 0.05;
             else if (shopifyData[0][41] === 'NS' || shopifyData[0][41] === 'NB' || shopifyData[0][41] === 'NL' || shopifyData[0][41] === 'PE')
               checks[2][0] = 0.15;
@@ -122,7 +133,7 @@ function onEdit(e)
               spreadsheet.getRangeByName('ShippingAmount').setValue(0);
               spreadsheet.getRangeByName('Checkbox_PickUp').check()
               spreadsheet.getRangeByName('Checkbox_Lettermail').uncheck()
-              //changeShippingAddress()
+              changeShippingAddress(sheet)
               break;
             case 'Post Tracked Packet':
             case 'Post Expedited Parcel':
@@ -178,7 +189,8 @@ function onEdit(e)
 }
 
 /**
- * This function handles the onOpen trigger event. It checks ...
+ * This function handles the onOpen trigger event. It creates several menu items in addition to reseting formulas on the Packing Slip,
+ * reseting named ranges on the Invoice, and formatting the spreadsheet.
  * 
  * @param {Event} e : The event object 
  */
@@ -187,17 +199,17 @@ function onOpen()
   var ui = SpreadsheetApp.getUi();
 
   ui.createMenu('Invoice Controls')
-    .addItem('COMPLETE', 'packingSlip_Complete')
-    .addItem('Hold For Pick Up', 'packingSlip_HFPU')
-    .addItem('Back Order', 'packingSlip_BackOrder')
+    .addItem('COMPLETE', 'invoice_Complete')
+    .addItem('Hold For Pick Up', 'invoice_HFPU')
+    .addItem('Back Order', 'invoice_BackOrder')
     .addSubMenu(ui.createMenu('Show Items')
-    .addItem('ALL Items', 'showItems_all')
-    .addItem('Pending ONLY', 'showItems_pending')
-    .addItem('Fulfilled ONLY', 'showItems_fulfilled')
-    .addItem('Unfulfilled ONLY', 'showItems_unfulfilled')
-    .addItem('Pending & Fulfilled', 'showItems_pending_AND_fulfilled'))
-    //.addItem('Display Shipping Calculator', 'displayShippingCalculator')
-    .addItem('Email Invoice To Customer', 'emailPackingSlip')
+      .addItem('ALL Items', 'showItems_all')
+      .addItem('Pending ONLY', 'showItems_pending')
+      .addItem('Fulfilled ONLY', 'showItems_fulfilled')
+      .addItem('Unfulfilled ONLY', 'showItems_unfulfilled')
+      .addItem('Pending & Fulfilled', 'showItems_pending_AND_fulfilled'))
+    .addItem('Email Invoice To Customer', 'email_Invoice')
+    .addItem('Email Invoice To Customer with Comments', 'email_InvoiceWithComments')
     .addSeparator()
     .addItem('Apply Formatting', 'applyFormatting')
     //.addItem('Display Shipping Calculator', 'displayShippingCalculator')
@@ -234,9 +246,10 @@ function applyFormatting(sheets)
 
     if (sheetName === 'Status Page')
     {
-      range = sheets[s].setColumnWidth(1, 75).setColumnWidth(2, 30).setColumnWidth(3, 126).setColumnWidth(4, 331)
-        .setColumnWidth(5, 117).setColumnWidth( 6, 122).setColumnWidth( 7, 118).setColumnWidth( 8, 248)
-        .setColumnWidth(9, 108).setColumnWidth(10, 120).setColumnWidth(11, 118).setColumnWidth(12,  93).getDataRange();
+      range = sheets[s].setColumnWidth(1, 75).setColumnWidth(2, 30).setColumnWidth(3, 140).setColumnWidth(4, 331)
+        .setColumnWidth(5, 117).setColumnWidth(6, 122).setColumnWidth( 7, 118).setColumnWidth(8, 248)
+        .setColumnWidth(9, 110).setColumnWidths(10, 120, 2).setColumnWidth(12, 100)
+        .getDataRange();
       lastRow = range.getLastRow()
       lastCol = range.getLastColumn()
       sheets[s].setFrozenRows(2)
@@ -246,7 +259,7 @@ function applyFormatting(sheets)
 
       range.setFontColor('black').setFontFamily('Calibri').setVerticalAlignment('middle').setBackgrounds(colours).setFontStyle('normal').setFontWeight('normal')
         .setNumberFormats(new Array(lastRow).fill(['@', '0.###############', ...new Array(lastCol - 3).fill('@'), 'dd MMM yyyy']))
-        .setFontSizes([new Array(lastCol).fill(18), ...new Array(lastRow - 1).fill(new Array(lastCol).fill(12))])
+        .setFontSizes([[...new Array(lastCol - 4).fill(18), ...new Array(4).fill(14)], ...new Array(lastRow - 1).fill(new Array(lastCol).fill(12))])
         .setHorizontalAlignments([['center', ...new Array(lastCol - 1).fill('left')], new Array(lastCol).fill('left'), 
           ...new Array(lastRow - 2).fill(['left', 'middle', ...new Array(lastCol - 3).fill('left'), 'right'])])
     }
@@ -289,9 +302,9 @@ function applyFormatting(sheets)
           .setColumnWidth(5, 40).setColumnWidth(6, 95).setColumnWidth(7, 50).setColumnWidths(8, 2, 75)
           .setRowHeight(1, 20).setRowHeight(2, 40).setRowHeights(3, 4, 20).setRowHeight(7, 10).setRowHeights(8, 5, 20).setRowHeight(13, 10)
           .setRowHeight(14, 20).setRowHeight(15, 10).setRowHeights(16, 33, 20).setRowHeight(49, 10).setRowHeight(50, 20)
-        .getRange(1, 1) // PNT Logo
-          .setValue(pntLogo)
-        .offset(0, 7, 6, 2) // The invoice header values on page one
+        // .getRange(1, 1) // PNT Logo
+        //   .setValue(pntLogo)
+        .getRange(1, 8, 6, 2) // The invoice header values on page one
           .setFontColor('black').setFontFamily('Arial').setFontStyle('normal').setBackground('white')
           .setFontSizes([[10, 10], [10, 9], [10, 10], [10, 10], [10, 10], [10, 10]])
           .setVerticalAlignments([['middle', 'middle'], ['top', 'top'], ['middle', 'middle'], ['middle', 'middle'], ['middle', 'middle'], ['middle', 'middle']])
@@ -409,21 +422,22 @@ function applyFormatting(sheets)
 
       range.setFontColor('black').setFontFamily('Arial').setFontSize(10).setNumberFormat('@').setVerticalAlignment('middle')
     }
-    else if (sheetName === 'Last_Import' || sheetName === 'All_Active_Orders')
+    else if (sheetName === 'Last_Import' || sheetName === 'All_Active_Orders' || sheetName === 'All_Completed_Orders')
     {
       range = sheets[s].hideSheet().getDataRange();
       lastRow = range.getLastRow()
       lastCol = range.getLastColumn()
       sheets[s].setFrozenRows(1)
+      sheets[s].setFrozenColumns(1)
 
       range.setBackgrounds([new Array(lastCol).fill('#c9daf8'), ...new Array(lastRow - 1).fill(new Array(lastCol).fill('white'))]).setFontColor('black')
         .setFontFamily('Arial').setFontSize(10).setNumberFormat('@').setVerticalAlignment('middle')
     }
-    else if (sheetName === 'Status')
+    else if (sheetName === 'Status' || sheetName === 'Completed Orders')
       sheets[s].hideSheet().getDataRange().setBackground('white').setFontColor('black').setFontFamily('Arial').setFontSize(10)
         .setHorizontalAlignment('left').setNumberFormat('@').setVerticalAlignment('middle')
-    else if (sheetName === 'Complete')
-      continue;
+    else if (sheetName === 'Completed Orders')
+      sheets[s].hideSheet()
   }
 
   spreadsheet.toast('All sheets were formatted.')
@@ -432,11 +446,12 @@ function applyFormatting(sheets)
 /**
  * This function formats all of the header information for the packing slip. It is intended to run after user has completed an order from the Packing Slip page.
  * 
- * @param {Sheet} sheet : The packing slip sheet
- * @param {Number} shippingAmount : The value of shipping
+ * @param {Sheet}             sheet : The packing slip sheet.
+ * @param {Spreadsheet} spreadsheet : The active spreadsheet.
+ * @param {Number}   shippingAmount : The value of shipping.
  * @author Jarren Ralf
  */
-function applyFormattingToPackingSlip(sheet, spreadsheet, shippingAmount)
+function applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
 {
   const values = sheet.getSheetValues(1, 2, 14, 8);
   const ordNumber      = values[ 0][7]
@@ -446,7 +461,7 @@ function applyFormattingToPackingSlip(sheet, spreadsheet, shippingAmount)
   const col = 9; // Number of columns on the packing slip
   const numItemsOnPageOne = 32;
   const boldTextStyle = SpreadsheetApp.newTextStyle().setBold(true).setFontSize(12).build();
-  const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('http://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
+  //const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('http://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
   const pntAddress = SpreadsheetApp.newRichTextValue().setText('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
     .setLinkUrl(91, 117, 'https://www.pacificnetandtwine.com/').build()
   const shipDate = SpreadsheetApp.newRichTextValue().setText('Ship Date: ' + Utilities.formatDate(new Date(), spreadsheet.getSpreadsheetTimeZone(), "dd MMMM yyyy"))
@@ -458,9 +473,9 @@ function applyFormattingToPackingSlip(sheet, spreadsheet, shippingAmount)
     .setColumnWidth(5, 40).setColumnWidth(6, 95).setColumnWidth(7, 50).setColumnWidths(8, 2, 75)
     .setRowHeight(1, 20).setRowHeight(2, 40).setRowHeights(3, 4, 20).setRowHeight(7, 10).setRowHeights(8, 5, 20).setRowHeight(13, 10)
     .setRowHeight(14, 20).setRowHeight(15, 10).setRowHeights(16, 33, 20).setRowHeight(49, 10).setRowHeight(50, 20)
-  .getRange(1, 1) // PNT Logo
-    .setValue(pntLogo)
-  .offset(0, 7, 6, 2) // The invoice header values on page one
+  // .getRange(1, 1) // PNT Logo
+  //   .setValue(pntLogo)
+  .getRange(1, 8, 6, 2) // The invoice header values on page one
     .setFontColor('black').setFontFamily('Arial').setFontStyle('normal').setBackground('white')
     .setFontSizes([[10, 10], [10, 9], [10, 10], [10, 10], [10, 10], [10, 10]])
     .setVerticalAlignments([['middle', 'middle'], ['top', 'top'], ['middle', 'middle'], ['middle', 'middle'], ['middle', 'middle'], ['middle', 'middle']])
@@ -548,21 +563,24 @@ function capitalizeSubstrings(str, delimiter)
 }
 
 /**
- * This function...
+ * This function changes the Ship To address on the Invoice page when a user chooses the "Pick Up" shipping method.
  * 
+ * @param {Sheet} sheet : The invoice sheet.
  * @author Jarren Ralf
  */
-function changeShippingAddress()
+function changeShippingAddress(sheet)
 {
-  var html = HtmlService.createHtmlOutputFromFile('changePickUpAddress.html')
-    .setWidth(400)
-    .setHeight(250);
-  SpreadsheetApp.getUi() // Or DocumentApp or SlidesApp or FormApp.
-    .showModalDialog(html, "Change Ship-To Address");
+  const customer = sheet.getSheetValues(8, 2, 5, 1);
+  const template = HtmlService.createTemplateFromFile('changePickUpAddress.html');
+  template.customerName = customer[0][0];
+  template.phoneNumber  = customer[4][0];
+  const html = template.evaluate().setWidth(400).setHeight(250);
+
+  SpreadsheetApp.getUi().showModalDialog(html, "Change Ship-To Address");
 }
 
 /**
- * This function...
+ * This function clears the export page.
  * 
  * @author Jarren Ralf
  */
@@ -588,6 +606,9 @@ function clearExportPage()
 function createTriggers()
 {
   ScriptApp.newTrigger('onChange').forSpreadsheet('1QIKO0KcWPYoP4yR5c22jvbY0Ldsx9tO4MqyrMiTTzBc').onChange().create() // This is an installable onChange trigger
+  ScriptApp.newTrigger('installedOnEdit').forSpreadsheet('1QIKO0KcWPYoP4yR5c22jvbY0Ldsx9tO4MqyrMiTTzBc').onEdit().create() // This is an installable onChange trigger
+  ScriptApp.newTrigger('removeOldOrdersFrom_All_Completed_OrdersArchive').timeBased().everyWeeks(2).onWeekDay(ScriptApp.WeekDay.SUNDAY).create()
+  ScriptApp.newTrigger("resetCurrentYearFreightCounterAnnually").timeBased().onMonthDay(1).atHour(2).create();
 }
 
 /**
@@ -669,64 +690,64 @@ function downloadButton()
  * @param {Boolean} comments : A boolean for whether the user wants to have additional comments in the body of the email
  * @author Jarren Ralf
  */
-function emailPackingSlip(comments)
+function email_Invoice(comments)
 {
   const spreadsheet = SpreadsheetApp.getActive();
-  const packingSlip = spreadsheet.getSheetByName('Invoice').activate();
-  const packingSlipValues = packingSlip.getSheetValues(1, 2, 14, 8);
+  const invoice = spreadsheet.getSheetByName('Invoice').activate();
+  const invoiceValues = invoice.getSheetValues(1, 2, 14, 8);
 
-  if (packingSlipValues[13][0] !== 'Select Shipping Method')
+  if (invoiceValues[13][0] !== 'Select Shipping Method')
   {
     const recipientEmail = spreadsheet.getSheetByName('Last_Import').getSheetValues(2, 2, 1, 1)[0][0];
     //const recipientEmail = 'adrian@pacificnetandtwine.com' // For testing  
-    const orderNumber = packingSlipValues[0][7];
-    const billingName = packingSlipValues[7][4];
+    const orderNumber = invoiceValues[0][7];
+    const billingName = invoiceValues[7][4];
 
     // Read in and set the appropriate variables on the html template
-    if (isBlank(packingSlipValues[13][2]))
+    if (isBlank(invoiceValues[13][2]))
       var templateHtml = (comments) ? HtmlService.createTemplateFromFile('customEmail') : HtmlService.createTemplateFromFile('email');
     else // Tracking number is included
     {
       var linkUrl = "";
 
       // Check the shipping method and make the relevant changes
-      switch (packingSlipValues[13][0])
+      switch (invoiceValues[13][0])
       {
         case 'Post Tracked Packet':
         case 'Post Expedited Parcel':
         case 'Post Xpress Post':
-          linkUrl += "https://www.canadapost.ca/track-reperage/en#/search?searchFor=" + packingSlipValues[13][2];
+          linkUrl += "https://www.canadapost.ca/track-reperage/en#/search?searchFor=" + invoiceValues[13][2];
           break;
         case 'Purolator Ground':
         case 'Purolator Express':
-          linkUrl += "https://www.purolator.com/purolator/ship-track/tracking-details.page?pin=" + packingSlipValues[13][2];
+          linkUrl += "https://www.purolator.com/purolator/ship-track/tracking-details.page?pin=" + invoiceValues[13][2];
           break;
         case 'UPS Standard':
         case 'UPS Express':
-          linkUrl += "https://www.ups.com/track?loc=en_CA&tracknum=" + packingSlipValues[13][2];
+          linkUrl += "https://www.ups.com/track?loc=en_CA&tracknum=" + invoiceValues[13][2];
           break;
       }
 
       const hyperlink = SpreadsheetApp.newTextStyle().setFontSize(11).setUnderline(true).setForegroundColor('#1155cc').build();
-      const hyperlinkRichText = SpreadsheetApp.newRichTextValue().setText(packingSlipValues[13][2]).setTextStyle(hyperlink).setLinkUrl(linkUrl).build();
-      packingSlip.getRange(14, 4).setRichTextValue(hyperlinkRichText)
+      const hyperlinkRichText = SpreadsheetApp.newRichTextValue().setText(invoiceValues[13][2]).setTextStyle(hyperlink).setLinkUrl(linkUrl).build();
+      invoice.getRange(14, 4).setRichTextValue(hyperlinkRichText)
 
       var templateHtml = (comments) ? HtmlService.createTemplateFromFile('customEmailWithTrackingNumber') : HtmlService.createTemplateFromFile('emailWithTrackingNumber');
-      templateHtml.trackingNumber = packingSlipValues[13][2];
+      templateHtml.trackingNumber = invoiceValues[13][2];
       templateHtml.url = linkUrl
     }
     
     templateHtml.recipientName = billingName.split(' ', 1)[0];
-    templateHtml.shippingMethod = packingSlipValues[13][0];
+    templateHtml.shippingMethod = invoiceValues[13][0];
 
     if (comments)
-      templateHtml.comments = prompt('Please type you email comments:')
+      templateHtml.comments = prompt('Please type your email comments:')
 
     var emailSubject = 'RE: [Pacific Net & Twine Ltd] ' + orderNumber + ' placed by ' + billingName;
     var emailSignature = '<p>If you have any questions, please click reply or send an email to: <a href="mailto:websales@pacificnetandtwine.com?subject=RE: [Pacific Net %26 Twine Ltd] ' + 
       orderNumber + ' placed by ' + billingName + '">websales@pacificnetandtwine.com</a></p>'
     var message = templateHtml.evaluate().append(emailSignature).getContent(); // Get the contents of the html document
-    var packingSlipPDF = getAsBlob(spreadsheet, packingSlip).getAs('application/pdf').setName(orderNumber + ".pdf")
+    var invoicePDF = getAsBlob(spreadsheet, invoice).getAs('application/pdf').setName(orderNumber + ".pdf")
 
     // Fire an email with following chosen parameters
     GmailApp.sendEmail(recipientEmail, 
@@ -736,7 +757,7 @@ function emailPackingSlip(comments)
                              //from: 'pntnoreply@gmail.com',
                              name: 'PNT Web Sales',
                          htmlBody: message,
-                      attachments: packingSlipPDF});
+                      attachments: invoicePDF});
 
     spreadsheet.toast('Email Successfully Sent to ' + billingName);
   }
@@ -751,9 +772,9 @@ function emailPackingSlip(comments)
  * 
  * @author Jarren Ralf
  */
-function emailPackingSlipWithComments()
+function email_InvoiceWithComments()
 {
-  emailPackingSlip(true)
+  email_Invoice(true)
 }
 
 /**
@@ -803,7 +824,7 @@ function exportData(importData, exportSheet, spreadsheet, shippingAmount, itemVa
         exportData.push(getFreightLine(shippingCosts[numOrders - 1], country)); // Add a freight line
       }
 
-      country = (isNotBlank(importData[i][42])) ? importData[i][42].toUpperCase() : importData[i][32].toUpperCase();
+      country  = (isNotBlank(importData[i][42])) ? importData[i][42].toUpperCase() : importData[i][32].toUpperCase();
       province = (isNotBlank(importData[i][41])) ? importData[i][41].toUpperCase() : importData[i][31].toUpperCase();
 
       // The shipping charges for USA orders don't contain GST and PST, but the canadian orders do
@@ -1006,6 +1027,167 @@ function getInventoryLocation(data)
 }
 
 /**
+ * This function takes all of the data on the Invoice page and creates a grid of data that will be stored on the All_Completed_Orders page,
+ * so that that information can repopulate an Invoice in the future.
+ * 
+ * @param {String} orderNumber_Status : The order number and status, which matches the format on the Completed Orders page used for Data Validation on the Status page.
+ * @param {String[][]}  itemValues    : The values pertaining to what the customer order on the Invoice page, including quantity and cost.
+ * @param {Sheet}         sheet       : The Invoice sheet.
+ * @return {String[][]} The data that will go on the All_Completed_Orders page.
+ * @author Jarren Ralf
+ */
+function getInvoiceDataForAll_Completed_Orders(orderNumber_Status, itemValues, sheet)
+{
+  const headerValues = sheet.getRange(1, 1, 14, 9).getValues()
+  const shipDate = headerValues[13][6].split(': ', 2)[1] // Ship Date
+  var completedData = [], row;
+
+  itemValues.map(val => {
+    if (isNotBlank(val[1]))
+    {
+      row = new Array(25)
+      row[0] = orderNumber_Status;
+      row[1] = val[0].split(' ', 1)[0] // Qty
+      row[2] = val[1] // SKU
+      row[3] = val[2] // Item Description
+      row[4] = val[7] // Item Price
+      row[5] = val[8] // Item Total
+      row[6] = shipDate;
+      completedData.push(row)
+    }
+  })
+
+  completedData[0][ 7] = headerValues[ 0][8] // Order #
+  completedData[0][ 8] = Utilities.formatDate(headerValues[1][8], SpreadsheetApp.getActive().getSpreadsheetTimeZone(), 'yyyy-MM-dd')    // Ordered Date
+  completedData[0][ 9] = headerValues[ 2][8] // Subtotal Amount
+  completedData[0][10] = headerValues[ 3][8] // Shipping Amount
+  completedData[0][11] = headerValues[ 4][8] // Taxes
+  completedData[0][12] = headerValues[ 5][8] // Order Total
+  completedData[0][13] = headerValues[ 7][1] // Shipping Name
+  completedData[0][14] = headerValues[ 8][1] // Shipping Company
+  completedData[0][15] = headerValues[ 9][1] // Shipping Address
+  completedData[0][16] = headerValues[10][1] // Shipping City, Province, Postal Code
+  completedData[0][17] = headerValues[11][1] // Shipping Phone
+  completedData[0][18] = headerValues[ 7][5] // Billing Name
+  completedData[0][19] = headerValues[ 8][5] // Billing Company
+  completedData[0][20] = headerValues[ 9][5] // Billing Address
+  completedData[0][21] = headerValues[10][5] // Billing City, Province, Postal Code
+  completedData[0][22] = headerValues[11][5] // Billing Phone
+  completedData[0][23] = headerValues[13][1] // Shipping Method
+  completedData[0][24] = headerValues[13][3] // Tracking Number
+
+  return completedData;
+}
+
+/**
+ * This function sets the values on the invoice from All_Completed_Orders page based on the user's selection of a past order from the top left-hand cell of the Status page.
+ * 
+ * @param {String} orderNumber_Status : The order number and status, which matches the format on the Completed Orders page used for Data Validation on the Status page.
+ * @param {Spreadsheet} spreadsheet : The active spreadsheet.
+ * @author Jarren Ralf
+ */
+function setInvoiceValues(orderNumber_Status, spreadsheet)
+{
+  const sheet = spreadsheet.getSheetByName('All_Completed_Orders')
+  const values = sheet.getSheetValues(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).filter(ordNum_Status => ordNum_Status[0] === orderNumber_Status)
+
+  if (values.length !== 0)
+  {
+    var row;
+    const blankRows = new Array(9).fill('')
+    const linkUrl = getTrackingNumberURL(values[0][24], values[0][23])
+    const boldTextStyle = SpreadsheetApp.newTextStyle().setBold(true).setFontSize(12).build();
+    const hyperlink = SpreadsheetApp.newTextStyle().setFontSize(11).setUnderline(true).setForegroundColor('#1155cc').build();
+    const shipDateRichText = SpreadsheetApp.newRichTextValue().setText('Ship Date: ' + values[0][6]).setTextStyle(0, 10, boldTextStyle).build();
+    const richText = SpreadsheetApp.newRichTextValue().setText('').build()
+    const trackingNumberRichText = (values[0][24]) ? (linkUrl) ? SpreadsheetApp.newRichTextValue().setText(values[0][24]).setTextStyle(hyperlink).setLinkUrl(linkUrl).build() : richText : richText;
+    var shippingLocation, billingLocation;
+    
+    const lastImportData = values.map((item, i) => {
+
+      row = new Array(44).fill('');
+
+      if (i === 0)
+      {
+        shippingLocation = item[16].split(', ')
+        billingLocation = item[21].split(', ')
+        
+        row[15] = item[ 8] // Order Date
+        row[34] = item[13] // Shipping Name
+        row[38] = item[14] // Shipping Company
+        row[36] = item[15] // Shipping Address
+        row[39] = shippingLocation[0] // Shipping City
+        row[41] = shippingLocation[1] // Shipping Province
+        row[40] = shippingLocation[2] // Shipping Post Code
+        row[42] = shippingLocation[3] // Shipping Country
+        row[43] = item[17] // Shipping Phone
+        row[24] = item[18] // Billing Name
+        row[28] = item[19] // Billing Company
+        row[26] = item[20] // Billing Address
+        row[29] = billingLocation[0] // Billing City
+        row[31] = billingLocation[1] // Billing Province
+        row[30] = billingLocation[2] // Billing Post Code
+        row[32] = billingLocation[3] // Billing Country
+        row[33] = item[22] // Billing Phone
+        row[14] = (item[23] !== 'Pick Up') ? 'MAIL' : row[39]; // Shipping Method
+      }
+      
+      row[16] = item[1] // Qty
+      row[20] = item[2] // Sku
+      row[17] = item[3] // Item Description
+      row[18] = item[4] // Item Price
+      row[ 0] = item[7] // Order Number
+      row[23] = 'fulfilled'; // Fulfillment Status
+
+      return row
+    })
+
+    const checkboxRange = spreadsheet.getSheetByName('Calculator').getRange(2, 3, 2, 1).setFormulas([['=SubtotalAmount'], ['=ShippingAmount']]).offset(0, 1, 9, 1).uncheck().offset(1, 0, 7, 1)
+    const checks = checkboxRange.getValues()
+
+    // Check the shipping country and province, then set the taxes accordingly by checking the appropriate box
+    if (isBlank(shippingLocation[1])) // Blank means the item is a pick up in BC, therefore charge 12%
+    {
+      checks[0][0] = 0.12;
+      spreadsheet.getRangeByName('ShippingAmount').setValue(0);
+    }
+    else
+    {
+      if (shippingLocation[3] !== 'CA')
+        checks[5][0] = 0;
+      else
+      {
+        if (shippingLocation[1] === 'BC') 
+          checks[0][0] = 0.12;
+        else if (shippingLocation[1] === 'AB' || shippingLocation[1] === 'NT' || shippingLocation[1] === 'NU' || 
+                shippingLocation[1] === 'YT' || shippingLocation[1] === 'QC' || shippingLocation[1] === 'MB' ||
+                shippingLocation[1] === 'SK')
+          checks[1][0] = 0.05;
+        else if (shippingLocation[1] === 'NS' || shippingLocation[1] === 'NB' || shippingLocation[1] === 'NL' || shippingLocation[1] === 'PE')
+          checks[2][0] = 0.15;
+        else if (shippingLocation[1] === 'ON')
+          checks[3][0] = 0.13;
+        // else if (shippingLocation[1] === 'SK')
+        //   checks[4][0] = 0.11;
+      }
+    }
+
+    checkboxRange.setValues(checks)
+    spreadsheet.getRangeByName('Hidden_Checkbox').uncheck(); // This is the checkbox on the Packing Slip that adds 10%
+
+    spreadsheet.getSheetByName('Invoice').activate()
+      .getRange(4, 9).setValue(values[0][10]) // The shipping Amount
+      .offset(10, -7, 1, 1).setValues([[values[0][23]]]) // The shipping method
+      .offset(0, 2, 1, 6).setBorder(true, false, true, true, false, false).setRichTextValues([[trackingNumberRichText, richText, richText, shipDateRichText, richText, richText]])
+      .offset(3, -3, 32, 9).setValues([...values.map(item => [item[1] + ' x', item[2], item[3], '', '', '', '', item[4], item[5]]), ...new Array(32 - values.length).fill(blankRows)])
+
+    spreadsheet.getSheetByName('Last_Import').getRange('A2:CA').clearContent().offset(0, 0, lastImportData.length, lastImportData[0].length).setValues(lastImportData)
+  }
+  else
+    spreadsheet.toast('This order is not in the ALL COMPLETED ORDERS archive.', 'Order Not Found')
+}
+
+/**
  * This function takes the import data for the given row and creates a product line for the export data.
  * The unit price is set for the product, including any discounts and then rounded to 2 decimals.
  * 
@@ -1100,6 +1282,34 @@ function getTaxCode_Order(data, province, country)
     return 'HSTCF2';
   else
     return 'No Tax Code';
+}
+
+/**
+ * This function takes the shipping method + tracking number and produces a link to the appropriate website for online tracking.
+ * 
+ * @param {String} trackingNumber : The number that can be used to locate a particular shipment
+ * @param {String} shippingMethod : The transportation company and the type of service that is used to send the package(s).
+ * @return {String} Returns the url of the webpage that can be used to track a particular shipment.
+ * @author Jarren Ralf
+ */ 
+function getTrackingNumberURL(trackingNumber, shippingMethod)
+{
+  switch (shippingMethod) // Check the shipping method and set the appropriate url
+  {
+    case 'Post Tracked Packet':
+    case 'Post Regular Parcel':
+    case 'Post Expedited Parcel':
+    case 'Post Xpress Post':
+      return "https://www.canadapost.ca/track-reperage/en#/search?searchFor=" + trackingNumber;
+    case 'Purolator Ground':
+    case 'Purolator Express':
+      return "https://www.purolator.com/purolator/ship-track/tracking-details.page?pin=" + trackingNumber;
+    case 'UPS Standard':
+    case 'UPS Express':
+      return "https://www.ups.com/track?loc=en_CA&tracknum=" + trackingNumber;
+    default:
+      return ""
+  }
 }
 
 /**
@@ -1216,11 +1426,14 @@ function isSKU_NotBlank(data)
 }
 
 /**
- * This function ...
+ * This function creates the export data from the current order which will be used to import into the Adagio OrderEntry system.
+ * It also adds the current order to the Completed Order list. Since it is a back order, the status on the status page is updated and
+ * the rows on the all active orders are left intact. After formatting the Packing Slip, two pdfs are created and saved in the google drive, 
+ * one invoice and one packing slip.
  * 
  * @author Jarren Ralf
  */
-function packingSlip_BackOrder()
+function invoice_BackOrder()
 {
   const spreadsheet = SpreadsheetApp.getActive();
   const sheet = spreadsheet.getActiveSheet();
@@ -1251,51 +1464,82 @@ function packingSlip_BackOrder()
     var numPages = sheet.getSheetValues(42, 9, 1, 1)[0][0];
 
     if (isBlank(numPages))
-      var itemValues_PackingSlip = sheet.getSheetValues(17, 1, 24, 8);
+      var itemValues_Invoice = sheet.getSheetValues(17, 1, 24, 9);
     else
     {
       numPages = numPages.split(' ')[3]
-      var itemValues_PackingSlip = sheet.getSheetValues(17, 1, 24, 8);
+      var itemValues_Invoice = sheet.getSheetValues(17, 1, 24, 9);
 
       for (var p = 0; p < numPages; p++)
-        itemValues_PackingSlip.push(...sheet.getSheetValues(52 + p*42, 1, 32, 8))
+        itemValues_Invoice.push(...sheet.getSheetValues(52 + p*42, 1, 32, 9))
     }
 
     const shippingAmount = sheet.getSheetValues(4, 9, 1, 1)[0][0];
     const activeOrdersPage = spreadsheet.getSheetByName('All_Active_Orders')
-    const activeOrdersValues = activeOrdersPage.getSheetValues(1, 1, activeOrdersPage.getLastRow(), activeOrdersPage.getLastColumn())
-    const values_ExportPage = [activeOrdersValues[0]]; // The shopify data used to create the export data for Adagio; initialize with the header
+    const activeOrdersRange = activeOrdersPage.getRange(1, 1, activeOrdersPage.getLastRow(), activeOrdersPage.getLastColumn());
+    const activeOrdersValues = activeOrdersRange.getValues()
+    var values_ExportPage = [activeOrdersValues[0]]; // The shopify data used to create the export data for Adagio; initialize with the header
+    var rowsToDelete = []
 
     for (var j = 1; j < activeOrdersValues.length; j++)
     {
       if (activeOrdersValues[j][0] === currentOrder)
       {
         values_ExportPage.push(activeOrdersValues[j])
+
+        // for (var k = 0; k < itemValues_Invoice.length; k++)
+        // {
+        //   if (activeOrdersValues[j][20] === itemValues_Invoice[k][1])
+        //   {
+        //     activeOrdersValues[j][16] -= Number(itemValues_Invoice[k][1].split(' ', 1)[0])
+
+        //     if (activeOrdersValues[j][16] <= 0)
+        //       rowsToDelete.push(j + 1)
+        //   }
+        // }
         break;
       }
     }
 
-    const completedOrdersPage = spreadsheet.getSheetByName('Completed Orders');
-    const lastRow = completedOrdersPage.getLastRow();
-  
-    const ordersOnCompletePage = (lastRow === 0) ? [[currentOrder + ' - Back Order']] : 
-      Array.from(new Set(completedOrdersPage.getSheetValues(1, 1, lastRow, 1)
-        .concat([[currentOrder + ' - Back Order']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1).map(JSON.stringify)), JSON.parse)
+    // activeOrdersRange.setValues(activeOrdersValues)
+    // rowsToDelete.reverse().map(row => activeOrdersPage.deleteRow(row))
 
-    completedOrdersPage.getRange(1, 1, lastRow).setValues(ordersOnCompletePage)
+    if (values_ExportPage.length > 1)
+    {
+      const completedOrdersPage = spreadsheet.getSheetByName('Completed Orders');
+      const numCompletedOrders = completedOrdersPage.getLastRow() - 1;
+    
+      const ordersOnCompletePage = (numCompletedOrders === -1) ? [[currentOrder + ' - Back Order']] : 
+        Array.from(new Set(completedOrdersPage.getSheetValues(2, 1, numCompletedOrders, 1)
+          .concat([[currentOrder + ' - Back Order']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1).map(JSON.stringify)), JSON.parse)
 
-    exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_PackingSlip);
-    statusPage.activate()
-    applyFormattingToPackingSlip(sheet, spreadsheet, shippingAmount)
+      ordersOnCompletePage.unshift([(numCompletedOrders + 1) + ' Invoices Created'])
+      completedOrdersPage.getRange(1, 1, numCompletedOrders + 2).setValues(ordersOnCompletePage)
+      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue((numCompletedOrders + 1) + ' Invoices Created').offset(0, 10)
+      updateCurrentYearFreightCost(currentYearFreightCostRange, shippingAmount)
+
+      const completedOrderData = getInvoiceDataForAll_Completed_Orders(currentOrder + ' - Back Order', itemValues_Invoice, sheet)
+      const all_Completed_Orders_Sheet = spreadsheet.getSheetByName('All_Completed_Orders');
+
+      all_Completed_Orders_Sheet.getRange(all_Completed_Orders_Sheet.getLastRow() + 1, 1, completedOrderData.length, completedOrderData[0].length).setValues(completedOrderData)
+    }
+    else
+      values_ExportPage = spreadsheet.getSheetByName('Last_Import').getDataRange().getValues()
+
+    exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_Invoice);
+    applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
+    savePDFsInDrive(sheet, spreadsheet)
   }
 }
 
 /**
- * This function ...
+ * This function creates the export data from the current order which will be used to import into the Adagio OrderEntry system.
+ * It also adds the current order to the Completed Order list. Since it is complete, the order is deleted from the status page as well as
+ * the all active orders sheet. After formatting the Packing Slip, two pdfs are created and saved in the google drive, one invoice and one packing slip.
  * 
  * @author Jarren Ralf
  */
-function packingSlip_Complete()
+function invoice_Complete()
 {
   const spreadsheet = SpreadsheetApp.getActive();
   const sheet = spreadsheet.getActiveSheet();
@@ -1316,15 +1560,18 @@ function packingSlip_Complete()
     const numOrders = remainingOrders_StatusPage.length;
     const numberFormats = new Array(numOrders).fill(['@', '#', ...new Array(numCols_StatusPage - 3).fill('@'), "dd MMM yyyy"])
 
-    statusPage.getRange(3, 1, numOrders, numCols_StatusPage).setNumberFormats(numberFormats).setValues(remainingOrders_StatusPage)
-    statusPage.deleteRows(numOrders + 3, values_StatusPage.length - numOrders) // Delete the last rows
-
+    if (values_StatusPage.length > numOrders)
+    {
+      statusPage.getRange(3, 1, numOrders, numCols_StatusPage).setNumberFormats(numberFormats).setValues(remainingOrders_StatusPage)
+      statusPage.deleteRows(numOrders + 3, values_StatusPage.length - numOrders) // Delete the last rows
+    }
+    
     var isCurrentOrder, isFirstRowOfCurrentData = true;
     
     const activeOrdersPage = spreadsheet.getSheetByName('All_Active_Orders')
     const numCols_OrdersPage = activeOrdersPage.getLastColumn();
     const values_OrdersPage = activeOrdersPage.getSheetValues(2, 1, activeOrdersPage.getLastRow() - 1, numCols_OrdersPage);
-    const values_ExportPage = [activeOrdersPage.getSheetValues(1, 1, 1, numCols_OrdersPage)[0]]; // The shopify data used to create the export data for Adagio; initialize with the header
+    var values_ExportPage = [activeOrdersPage.getSheetValues(1, 1, 1, numCols_OrdersPage)[0]]; // The shopify data used to create the export data for Adagio; initialize with the header
 
     const remainingOrders_OrdersPage = values_OrdersPage.filter(v => {
       isCurrentOrder = v[0] == currentOrder;
@@ -1340,44 +1587,63 @@ function packingSlip_Complete()
     
     const numRows = remainingOrders_OrdersPage.length;
 
-    activeOrdersPage.getRange(2, 1, numRows, numCols_OrdersPage).setValues(remainingOrders_OrdersPage)
-    activeOrdersPage.deleteRows(numRows + 2, values_OrdersPage.length - numRows) // Delete the last rows
+    if (values_OrdersPage.length > numRows)
+    {
+      activeOrdersPage.getRange(2, 1, numRows, numCols_OrdersPage).setValues(remainingOrders_OrdersPage)
+      activeOrdersPage.deleteRows(numRows + 2, values_OrdersPage.length - numRows) // Delete the last rows
+    }
 
     var lastCol = 9;
     var numPages = sheet.getSheetValues(50, lastCol, 1, 1)[0][0];
 
     if (isBlank(numPages))
-      var itemValues_PackingSlip = sheet.getSheetValues(17, 1, 32, lastCol - 1);
+      var itemValues_Invoice = sheet.getSheetValues(17, 1, 32, lastCol);
     else
     {
       numPages = numPages.split(' of ')[1]
-      var itemValues_PackingSlip = sheet.getSheetValues(17, 1, 32, lastCol - 1);
+      var itemValues_Invoice = sheet.getSheetValues(17, 1, 32, lastCol);
 
       for (var p = 0; p < numPages; p++)
-        itemValues_PackingSlip.push(...sheet.getSheetValues(59 + p*49, 1, 39, lastCol - 1))
+        itemValues_Invoice.push(...sheet.getSheetValues(59 + p*49, 1, 39, lastCol))
     }
 
     const shippingAmount = sheet.getSheetValues(4, lastCol, 1, 1)[0][0];
 
-    const completedOrdersPage = spreadsheet.getSheetByName('Completed Orders');
-    const lastRow = completedOrdersPage.getLastRow();
-  
-    const ordersOnCompletePage = (lastRow === 0) ? [[currentOrder + ' - Complete']] : 
-      completedOrdersPage.getSheetValues(1, 1, completedOrdersPage.getLastRow(), 1).concat([[currentOrder + ' - Complete']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1);
+    if (values_ExportPage.length > 1)
+    {
+      const completedOrdersPage = spreadsheet.getSheetByName('Completed Orders');
+      const numCompletedOrders = completedOrdersPage.getLastRow() - 1;
+    
+      const ordersOnCompletePage = (numCompletedOrders === -1) ? [[currentOrder + ' - Complete']] : 
+        completedOrdersPage.getSheetValues(2, 1, numCompletedOrders, 1).concat([[currentOrder + ' - Complete']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1);
 
-    completedOrdersPage.getRange(1, 1, ordersOnCompletePage.length).setValues(ordersOnCompletePage)
+      ordersOnCompletePage.unshift([(numCompletedOrders + 1) + ' Invoices Created'])
+      completedOrdersPage.getRange(1, 1, numCompletedOrders + 2).setValues(ordersOnCompletePage)
+      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue((numCompletedOrders + 1) + ' Invoices Created').offset(0, 10)
+      updateCurrentYearFreightCost(currentYearFreightCostRange, shippingAmount)
 
-    exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_PackingSlip);
-    applyFormattingToPackingSlip(sheet, spreadsheet, shippingAmount)
+      const completedOrderData = getInvoiceDataForAll_Completed_Orders(currentOrder + ' - Complete', itemValues_Invoice, sheet)
+      const all_Completed_Orders_Sheet = spreadsheet.getSheetByName('All_Completed_Orders');
+
+      all_Completed_Orders_Sheet.getRange(all_Completed_Orders_Sheet.getLastRow() + 1, 1, completedOrderData.length, completedOrderData[0].length).setValues(completedOrderData)
+    }
+    else
+      values_ExportPage = spreadsheet.getSheetByName('Last_Import').getDataRange().getValues()
+    
+    exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_Invoice);
+    applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
+    savePDFsInDrive(sheet, spreadsheet)
   }
 }
 
 /**
- * This function ...
+ * This function creates the export data from the current order which will be used to import into the Adagio OrderEntry system.
+ * It also adds the current order to the Completed Order list. Since it is hold for pick up, the status on the status page is updated and
+ * the rows on the all active orders are left intact. After formatting the Packing Slip, two pdfs are created and saved in the google drive, one invoice and one packing slip.
  * 
  * @author Jarren Ralf
  */
-function packingSlip_HFPU()
+function invoice_HFPU()
 {
   const spreadsheet = SpreadsheetApp.getActive();
   const activeSheet = spreadsheet.getActiveSheet();
@@ -1398,7 +1664,7 @@ function packingSlip_HFPU()
     const shippingAmount = sheet.getSheetValues(4, 9, 1, 1)[0][0];
     const activeOrdersPage = spreadsheet.getSheetByName('All_Active_Orders')
     const activeOrdersValues = activeOrdersPage.getSheetValues(1, 1, activeOrdersPage.getLastRow(), activeOrdersPage.getLastColumn())
-    const values_ExportPage = [activeOrdersValues[0]]; // The shopify data used to create the export data for Adagio; initialize with the header
+    var values_ExportPage = [activeOrdersValues[0]]; // The shopify data used to create the export data for Adagio; initialize with the header
 
     for (var j = 1; j < activeOrdersValues.length; j++)
     {
@@ -1438,33 +1704,48 @@ function packingSlip_HFPU()
     var numPages = sheet.getSheetValues(50, lastCol, 1, 1)[0][0];
 
     if (isBlank(numPages))
-      var itemValues_PackingSlip = sheet.getSheetValues(17, 1, 32, lastCol - 1);
+      var itemValues_Invoice = sheet.getSheetValues(17, 1, 32, lastCol);
     else
     {
       numPages = numPages.split(' of ')[1]
-      var itemValues_PackingSlip = sheet.getSheetValues(17, 1, 32, lastCol - 1);
+      var itemValues_Invoice = sheet.getSheetValues(17, 1, 32, lastCol);
 
       for (var p = 0; p < numPages; p++)
-        itemValues_PackingSlip.push(...sheet.getSheetValues(59 + p*49, 1, 39, lastCol - 1))
+        itemValues_Invoice.push(...sheet.getSheetValues(59 + p*49, 1, 39, lastCol))
     }
 
-    const completedOrdersPage = spreadsheet.getSheetByName('Completed Orders');
-    const lastRow = completedOrdersPage.getLastRow();
-  
-    const ordersOnCompletePage = (lastRow === 0) ? [[currentOrder + ' - Hold For Pick Up']] : 
-      Array.from(new Set(completedOrdersPage.getSheetValues(1, 1, completedOrdersPage.getLastRow(), 1)
-        .concat([[currentOrder + ' - Hold For Pick Up']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1).map(JSON.stringify)), JSON.parse)
+    if (values_ExportPage.length > 1)
+    {
+      const completedOrdersPage = spreadsheet.getSheetByName('Completed Orders');
+      const numCompletedOrders = completedOrdersPage.getLastRow() - 1;
+    
+      const ordersOnCompletePage = (numCompletedOrders === -1) ? [[currentOrder + ' - Hold For Pick Up']] : 
+        Array.from(new Set(completedOrdersPage.getSheetValues(2, 1, numCompletedOrders, 1)
+          .concat([[currentOrder + ' - Hold For Pick Up']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1).map(JSON.stringify)), JSON.parse)
 
-    completedOrdersPage.getRange(1, 1, ordersOnCompletePage.length).setValues(ordersOnCompletePage)
+      ordersOnCompletePage.unshift([(numCompletedOrders + 1) + ' Invoices Created'])
+      
+      completedOrdersPage.getRange(1, 1, numCompletedOrders + 2).setValues(ordersOnCompletePage)
+      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue((numCompletedOrders + 1) + ' Invoices Created').offset(0, 10)
+      updateCurrentYearFreightCost(currentYearFreightCostRange, shippingAmount)
 
-    exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_PackingSlip);
-    statusPage.activate()
-    applyFormattingToPackingSlip(sheet, spreadsheet, shippingAmount)
+      const completedOrderData = getInvoiceDataForAll_Completed_Orders(currentOrder + ' - Hold For Pick Up', itemValues_Invoice, sheet)
+      const all_Completed_Orders_Sheet = spreadsheet.getSheetByName('All_Completed_Orders');
+
+      all_Completed_Orders_Sheet.getRange(all_Completed_Orders_Sheet.getLastRow() + 1, 1, completedOrderData.length, completedOrderData[0].length).setValues(completedOrderData)
+    }
+    else
+      values_ExportPage = spreadsheet.getSheetByName('Last_Import').getDataRange().getValues()
+
+    exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_Invoice);
+    applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
+    savePDFsInDrive(sheet, spreadsheet)
   }
 }
 
 /**
- * This function ...
+ * This function processes the data inmported by a File -> Import -> Insert New Sheet(s) event. When this happens the active orders data is updated, and if there is 
+ * only 1 order, then the Invoice page is populated.
  * 
  * @param {Event} e : The event object.
  * @throws Throws an error if the script doesn't run
@@ -1495,7 +1776,7 @@ function processImportedData(e)
         updateActiveOrderPage(values, spreadsheet);
 
         if (numOrders === 1)
-          updatePackingSlip(values, info[numRows], info[numCols], spreadsheet)
+          updateInvoice(values, info[numRows], info[numCols], spreadsheet)
 
         if (sheets[sheet].getSheetName().substring(0, 7) !== "Copy Of") // Don't delete the sheets that are duplicates
           spreadsheet.deleteSheet(sheets[sheet]) // Delete the new sheet that was created
@@ -1516,13 +1797,13 @@ function processImportedData(e)
 }
 
 /**
- * This function ...
+ * This function reformats the Invoice sheet when atleast one row is deleted from it.
  * 
  * @param {Event} e : The event object.
  * @throws Throws an error if the script doesn't run
  * @author Jarren Ralf
  */
-function reformatPackingSlip(e)
+function reformatInvoice(e)
 {
   try
   {
@@ -1664,22 +1945,56 @@ function removeCompleteOrdersButton()
   activeOrdersPage.getRange(2, 1, numRows, numCols_OrdersPage).setValues(remainingOrders_OrdersPage)
 
   const completedOrdersPage = spreadsheet.getSheetByName('Completed Orders');
-  const lastRow = completedOrdersPage.getLastRow();
+  var numCompletedOrders = completedOrdersPage.getLastRow() - 1;
   
-  const ordersOnCompletePage = (lastRow === 0) ? completedOrders.map(v => [v + ' - Completed'])
+  const ordersOnCompletePage = (numCompletedOrders === -1) ? completedOrders.map(v => [v + ' - Completed'])
       .concat(pickedUpOrders.map(v => [v + ' - Completed']))
       .concat(cancelledOrders.map(v => [v + ' - Cancelled']))
       .sort((a, b) => (a[0] < b[0]) ? -1 : 1) : 
-    completedOrdersPage.getSheetValues(1, 1, completedOrdersPage.getLastRow(), 1)
+    completedOrdersPage.getSheetValues(2, 1, numCompletedOrders, 1)
       .concat(completedOrders.map(v => [v + ' - Completed']), pickedUpOrders.map(v => [v + ' - Completed']), cancelledOrders.map(v => [v + ' - Cancelled']))
       .sort((a, b) => (a[0] < b[0]) ? 1 : -1);
 
-  completedOrdersPage.getRange(1, 1, ordersOnCompletePage.length).setValues(ordersOnCompletePage)
+  numCompletedOrders = ordersOnCompletePage.length;
+  ordersOnCompletePage.unshift([ordersOnCompletePage.length + ' Invoices Created'])
+  sheet.getRange(1, 1).setValue((numCompletedOrders + 1) + ' Invoices Created')
+
+  completedOrdersPage.getRange(1, 1, numCompletedOrders + 1).setValues(ordersOnCompletePage)
 
   if (values_OrdersPage.length !== numRows)
   {
     activeOrdersPage.deleteRows(numRows + 2, values_OrdersPage.length - numRows) // Delete the last rows
     exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet);
+  }
+}
+
+/**
+ * This function removes orders from the All_Completed_Orders page when they are over X number of days old.
+ * 
+ * @author Jarren Ralf
+ */
+function removeOldOrdersFrom_All_Completed_OrdersArchive()
+{
+  const NUM_DAYS = 14;
+  const today = new Date().getTime()
+  const months = {'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5, 'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11}
+  const spreadsheet = SpreadsheetApp.getActive()
+  const sheet = spreadsheet.getSheetByName('All_Completed_Orders');
+  const numRows = sheet.getLastRow() - 1;
+  const numCols = sheet.getLastColumn();
+  var date;
+
+  const values = sheet.getSheetValues(2, 1, numRows, numCols).filter(row => {
+    date = row[6].split(' ');
+    return Math.floor((today - new Date(date[2], months[date[1]], date[0]).getTime())/(1000*60*60*24)) < NUM_DAYS;
+  })
+
+  const numRemainingRows = values.length;
+
+  if (numRows > numRemainingRows)
+  {
+    sheet.getRange(2, 1, numRemainingRows, numCols).setValues(values)
+    sheet.deleteRows(numRemainingRows + 2, numRows - numRemainingRows);
   }
 }
 
@@ -1697,6 +2012,41 @@ function resetArrayFormula_PackingSlip()
 }
 
 /**
+ * This function resets the current year freight cost counter every year on January 1st.
+ * 
+ * @author Jarren Ralf 
+ */
+function resetCurrentYearFreightCounter()
+{
+  const range = SpreadsheetApp.getActive().getSheetByName('Status Page').getRange(1, 9, 1, 3);
+  const richTextValues = range.getRichTextValues()[0]
+  const textStyles = richTextValues[2].getRuns().map(richTextVal => richTextVal.getTextStyle())
+
+  richTextValues[0] = richTextValues[2];
+
+  richTextValues[2] = richTextValues[2].copy().setText('$0.00 in Freight (' + new Date().getFullYear() + ')')
+    .setTextStyle(0,  1, textStyles[0])
+    .setTextStyle(1,  5, textStyles[1])
+    .setTextStyle(5, 23, textStyles[2])
+    .build();
+
+  range.setRichTextValues([richTextValues]);
+}
+
+/**
+* This function is a quick work around to set a yearly trigger. The trigger runs a function every month. 
+* That function only executes when the month is January. 
+* In this case specifically, it sets all of the dates on the Pay Periods sheet of this spreadsheet.
+*
+* @author Jarren Ralf
+*/
+function resetCurrentYearFreightCounterAnnually()
+{
+  if (new Date().getMonth() === 0)
+    resetCurrentYearFreightCounter();
+}
+
+/**
  * This function resets the named range on the Invoice that sums the item totals.
  * 
  * @author Jarren Ralf
@@ -1708,17 +2058,63 @@ function resetNamedRange_Invoice()
 }
 
 /**
- * This function...
+ * This function saves two pdfs in the google drive, one of the customer's invoice and one of their packing slip.
  * 
+ * @param    {Sheet}       sheet    : The active sheet.
+ * @param {Spreadsheet} spreadsheet : The active spreadsheet.
+ * @author Jarren Ralf
+ */
+function savePDFsInDrive(sheet, spreadsheet)
+{
+  const customerName = sheet.getSheetValues(8, 6, 1, 1)[0][0]
+  const invoicePdf = getAsBlob(spreadsheet, sheet).getAs('application/pdf').setName(customerName + "_Invoice.pdf")
+  const packingSlipPdf = getAsBlob(spreadsheet, spreadsheet.getSheetByName('Packing Slip')).getAs('application/pdf').setName(customerName + "_PackingSlip.pdf")
+  DriveApp.getFolderById('1axEEhmkrsfxXyquVowCgQY6ZdtHE0ZU-').createFile(invoicePdf)
+  DriveApp.getFolderById('1HBuavBn5INTXe4DmUWr0v9P-n6JBON3P').createFile(packingSlipPdf)
+}
+
+/**
+ * This function changes the ship details to match the pick up location that the user selected from the modal dialogue box. The shipping values
+ * and taxes are adjusted as well.
+ * 
+ * @param {String}      street      : The street of the pick up location.
+ * @param {String} cityProvPostCode : The city, province/state, postal/zip code, and the country.
+ * @author Jarren Ralf
+ */
+function setPickUpLocation(street, cityProvPostCode)
+{
+  const spreadsheet = SpreadsheetApp.getActive();
+  const range = spreadsheet.getSheetByName('Last_Import').getRange(2, 37, 1, 7)
+  const checkboxRange = spreadsheet.getRangeByName('Checkboxes').uncheck();
+  const values = range.getValues()[0]
+  const checks = checkboxRange.getValues()
+  const loc = cityProvPostCode.split(', ')
+  
+  values[0] = street // Street
+  values[2] = 'Pacific Net & Twine' // Company Name
+  values[3] = loc[0] // City
+  values[4] = loc[2] // Postal Code
+  values[5] = 'BC' // Province
+  values[6] = 'CA' // Country
+  checks[0][0] = 0.12;
+
+  checkboxRange.setValues(checks)
+  range.setValues([values])
+}
+
+/**
+ * This function takes the items from the raw shopify data and checks the fulfilment status of each item. It displays the items that match the chosen status.
+ * 
+ * @param {String} fulfilmentStatus : The fulfilment status of each item on an order.
  * @author Jarren Ralf
  */
 function showItems(fulfilmentStatus)
 {
   const spreadsheet = SpreadsheetApp.getActive()
-  const packingSlip = spreadsheet.getSheetByName('Invoice').activate();
+  const invoice = spreadsheet.getSheetByName('Invoice').activate();
   const shopifyData = spreadsheet.getSheetByName('Last_Import').getDataRange().getValues();
   const col = 9; // Number of columns on the packing slip
-  const orderNumber = packingSlip.getSheetValues(1, col, 1, 1)[0][0];
+  const orderNumber = invoice.getSheetValues(1, col, 1, 1)[0][0];
 
   if (orderNumber !== shopifyData[1][0])
     Browser.msgBox('The order number on this Invoice does not match the Last_Import page.\n\nPlease use File -> Import to upload the desired Invoice.')
@@ -1750,13 +2146,13 @@ function showItems(fulfilmentStatus)
     {
       if (numPages >= 2) // Two or more pages 
       {
-        packingSlip.getRange(numRowsPerPage + 1, col).setHorizontalAlignment('right').setValue('Page 1 of ' + numPages) // Put the page number on the bottom of page one
-        packingSlip.insertRowsAfter(numRowsPerPage + 1, (numPages - 1)*(numRowsPerPage))
+        invoice.getRange(numRowsPerPage + 1, col).setHorizontalAlignment('right').setValue('Page 1 of ' + numPages) // Put the page number on the bottom of page one
+        invoice.insertRowsAfter(numRowsPerPage + 1, (numPages - 1)*(numRowsPerPage))
 
-        if (packingSlip.getMaxRows() > numPages*numRowsPerPage + 1)
-          packingSlip.deleteRows(numPages*numRowsPerPage + 2, packingSlip.getMaxRows() - numPages*numRowsPerPage - 1)
+        if (invoice.getMaxRows() > numPages*numRowsPerPage + 1)
+          invoice.deleteRows(numPages*numRowsPerPage + 2, invoice.getMaxRows() - numPages*numRowsPerPage - 1)
 
-        packingSlip.getRange(16, 1, numItemsOnPageOne + 1, col) // Item information and formatting
+        invoice.getRange(16, 1, numItemsOnPageOne + 1, col) // Item information and formatting
           .setBorder(true, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
           .setHorizontalAlignments(new Array(numItemsOnPageOne + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
           .setVerticalAlignments(new Array(numItemsOnPageOne + 1).fill(new Array(col).fill('middle')))
@@ -1765,9 +2161,9 @@ function showItems(fulfilmentStatus)
           .setNumberFormats([new Array(col).fill('@'), ...new Array(numItemsOnPageOne).fill(['@', '@', '@', '@', '@', '@', '@', '$#,##0.00', '$#,##0.00'])])
           .setValues([['Qty', 'SKU', 'Item', null, null, null, null, 'Price', 'Total'], ...itemInformation.slice(0, numItemsOnPageOne)])
         
-        const pntAddress = packingSlip.getRange(4, 1).getRichTextValue();
-        const emailHyperLink = packingSlip.getRange(numRowsPerPage + 1, 1).getRichTextValue();
-        const invoiceHeaderValues = packingSlip.getRange(1, col - 1, 6).getValues().map((v, i) => [v[0], '=I' + (i + 1)])
+        const pntAddress = invoice.getRange(4, 1).getRichTextValue();
+        const emailHyperLink = invoice.getRange(numRowsPerPage + 1, 1).getRichTextValue();
+        const invoiceHeaderValues = invoice.getRange(1, col - 1, 6).getValues().map((v, i) => [v[0], '=I' + (i + 1)])
         var subtotalAmount = '=SUM(Item_Totals_Page_1', rangeName = '';
 
         for (var n = 0; n < numPages - 1; n++)
@@ -1775,19 +2171,19 @@ function showItems(fulfilmentStatus)
           var N = numRowsPerPage*n;
 
           rangeName = 'Item_Totals_Page_' + (n + 2);
-          spreadsheet.setNamedRange(rangeName, packingSlip.getRange(numRowsPerPage + 10 + N, col, numItemsPerPage))
+          spreadsheet.setNamedRange(rangeName, invoice.getRange(numRowsPerPage + 10 + N, col, numItemsPerPage))
           subtotalAmount += ',' + rangeName
 
-          packingSlip.setRowHeight(numRowsPerPage + 3 + N, 40)
+          invoice.setRowHeight(numRowsPerPage + 3 + N, 40)
             .setRowHeight(numRowsPerPage + 8 + N, 10)
             .setRowHeight(numRowsPerPage + 49 + N, 10)
             .getRange(numRowsPerPage + 9 + N, 3, numItemsPerPage + 1, 5).mergeAcross(); // Item (Description Field)
-          packingSlip.getRange(numRowsPerPage + 2 + N, 1, 3, 3).merge().setFormula('=A1'); // PNT Logo in Header
-          packingSlip.getRange(numRowsPerPage + 5 + N, 1, 3, 3).merge().setVerticalAlignment('middle').setHorizontalAlignment('left').setRichTextValue(pntAddress); // PNT Address in header
-          packingSlip.getRange(numRowsPerPage + 50 + N, 1, 1, 5).merge().setRichTextValue(emailHyperLink) // Email Hyperlink at bottom of each page
-          packingSlip.getRange(numRowsPerPage + 50 + N, col).setHorizontalAlignment('right').setValue('Page ' + (n + 2) + ' of ' + numPages) // Page number for the bottom of each page
+          invoice.getRange(numRowsPerPage + 2 + N, 1, 3, 3).merge().setFormula('=A1'); // PNT Logo in Header
+          invoice.getRange(numRowsPerPage + 5 + N, 1, 3, 3).merge().setVerticalAlignment('middle').setHorizontalAlignment('left').setRichTextValue(pntAddress); // PNT Address in header
+          invoice.getRange(numRowsPerPage + 50 + N, 1, 1, 5).merge().setRichTextValue(emailHyperLink) // Email Hyperlink at bottom of each page
+          invoice.getRange(numRowsPerPage + 50 + N, col).setHorizontalAlignment('right').setValue('Page ' + (n + 2) + ' of ' + numPages) // Page number for the bottom of each page
 
-          packingSlip.getRange(numRowsPerPage + 2 + N, 8, 6, 2) // Invoice header data
+          invoice.getRange(numRowsPerPage + 2 + N, 8, 6, 2) // Invoice header data
             .setFontColor('black').setFontFamily('Arial')
             .setFontSizes([[10, 10],[10, 9], ...new Array(4).fill([10, 10])])
             .setFontWeights(new Array(6).fill(['bold', 'normal']))
@@ -1797,7 +2193,7 @@ function showItems(fulfilmentStatus)
             .setValues(invoiceHeaderValues) // Header Values
 
           if (n != numPages - 2)
-            packingSlip.getRange(numRowsPerPage + 9 + N, 1, numItemsPerPage + 1, col) // Item information and formatting
+            invoice.getRange(numRowsPerPage + 9 + N, 1, numItemsPerPage + 1, col) // Item information and formatting
               .setBorder(true, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
               .setHorizontalAlignments(new Array(numItemsPerPage + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
               .setVerticalAlignments(new Array(numItemsPerPage + 1).fill(new Array(col).fill('middle')))
@@ -1807,7 +2203,7 @@ function showItems(fulfilmentStatus)
               .setValues([['Qty', 'SKU', 'Item', null, null, null, null, 'Price', 'Total'], 
                 ...itemInformation.slice(numItemsOnPageOne + numItemsPerPage*n, numItemsOnPageOne + numItemsPerPage*(n + 1))])
           else // Last Page
-            packingSlip.getRange(numRowsPerPage + 9 + N, 1, numItemsPerPage + 1, col) // Item information and formatting
+            invoice.getRange(numRowsPerPage + 9 + N, 1, numItemsPerPage + 1, col) // Item information and formatting
               .setBorder(true, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
               .setHorizontalAlignments(new Array(numItemsPerPage + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
               .setVerticalAlignments(new Array(numItemsPerPage + 1).fill(new Array(col).fill('middle')))
@@ -1821,11 +2217,11 @@ function showItems(fulfilmentStatus)
 
         // setValues of total
         subtotalAmount += ')';
-        packingSlip.getRange(3, col).setFormula(subtotalAmount)
+        invoice.getRange(3, col).setFormula(subtotalAmount)
       }
       else
       {
-        packingSlip.getRange(16, 1, numItemsOnPageOne + 1, col) // Item information and formatting
+        invoice.getRange(16, 1, numItemsOnPageOne + 1, col) // Item information and formatting
           .setBorder(true, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
           .setHorizontalAlignments(new Array(numItemsOnPageOne + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
           .setVerticalAlignments(new Array(numItemsOnPageOne + 1).fill(new Array(col).fill('middle')))
@@ -1836,30 +2232,30 @@ function showItems(fulfilmentStatus)
             ...itemInformation.slice(0, itemInformation.length), 
             ...new Array(numItemsOnPageOne - itemInformation.length).fill(new Array(col).fill(''))])
 
-        if (packingSlip.getMaxRows() > numRowsPerPage + 1)
-          packingSlip.deleteRows(numRowsPerPage + 2, packingSlip.getMaxRows() - numRowsPerPage - 1) // One page, delete the extra rows
+        if (invoice.getMaxRows() > numRowsPerPage + 1)
+          invoice.deleteRows(numRowsPerPage + 2, invoice.getMaxRows() - numRowsPerPage - 1) // One page, delete the extra rows
           
-        packingSlip.getRange(numRowsPerPage + 1, col).setValue('') // Set the page number blank
+        invoice.getRange(numRowsPerPage + 1, col).setValue('') // Set the page number blank
 
         var namedRange = '';
 
-        packingSlip.getNamedRanges().map(rng => {
+        invoice.getNamedRanges().map(rng => {
           namedRange = rng.getName()
 
           if (namedRange[namedRange.length - 1] !== '1' && !isNaN(parseInt(namedRange[namedRange.length - 1]))) // If the range ends with a number that is not 1, then remove it
             rng.remove();
         })
 
-        packingSlip.getRange(3, col).setFormula('=SUM(Item_Totals_Page_1)')
+        invoice.getRange(3, col).setFormula('=SUM(Item_Totals_Page_1)')
       }
     }
     else
     {
-      if (packingSlip.getMaxRows() > numRowsPerPage + 1)
-        packingSlip.deleteRows(numRowsPerPage + 2, packingSlip.getMaxRows() - numRowsPerPage - 1) // One page, delete the extra rows
+      if (invoice.getMaxRows() > numRowsPerPage + 1)
+        invoice.deleteRows(numRowsPerPage + 2, invoice.getMaxRows() - numRowsPerPage - 1) // One page, delete the extra rows
 
-      packingSlip.getRange(17, 1, numItemsOnPageOne, col).setValue('') // Set all of item information to blank
-      packingSlip.getRange(50, col).setValue('') // Only 1 page so set the page number to blank
+      invoice.getRange(17, 1, numItemsOnPageOne, col).setValue('') // Set all of item information to blank
+      invoice.getRange(50, col).setValue('') // Only 1 page so set the page number to blank
     }
     
     spreadsheet.getRangeByName('ShippingAmount').activate();
@@ -1867,7 +2263,7 @@ function showItems(fulfilmentStatus)
 }
 
 /**
- * This function...
+ * This function shows all of the items on an order.
  * 
  * @author Jarren Ralf
  */
@@ -1877,7 +2273,7 @@ function showItems_all()
 }
 
 /**
- * This function...
+ * This function shows only the fulfilled items on an order.
  * 
  * @author Jarren Ralf
  */
@@ -1887,7 +2283,7 @@ function showItems_fulfilled()
 }
 
 /**
- * This function...
+ * This function shows only the pending items on an order.
  * 
  * @author Jarren Ralf
  */
@@ -1897,7 +2293,7 @@ function showItems_pending()
 }
 
 /**
- * This function...
+ * This function shows both the pending and the fulfilled items on an order.
  * 
  * @author Jarren Ralf
  */
@@ -1907,7 +2303,7 @@ function showItems_pending_AND_fulfilled()
 }
 
 /**
- * This function...
+ * This function shows the unfulfilled items on an order.
  * 
  * @author Jarren Ralf
  */
@@ -1941,7 +2337,8 @@ function twoDecimals(num)
 }
 
 /**
- * This function updates ...
+ * This function updates the active order page when the user does a File => Import of raw shopify data. If there are orders that are currently in the list by shouldn't be,
+ * they are removed. New orders are also added to the list.
  * 
  * @param {Object[][]}  shopifyData : The data downloaded from shopify.
  * @param {Spreadsheet} spreadsheet : The active spreadsheet.
@@ -1961,7 +2358,40 @@ function updateActiveOrderPage(shopifyData, spreadsheet)
 }
 
 /**
- * This function updates the 
+ * This function updates the freight cost for the current year when a user completes orders (they are added to the export page for billing).
+ * 
+ * @param {Range} currentYearFreightCostRange : The range that the current cost of freight will be displayed in. 
+ * @param {Number}      shippingAmount        : The shipping amount for the current completed order.
+ * @author Jarren Ralf
+ */
+function updateCurrentYearFreightCost(currentYearFreightCostRange, shippingAmount)
+{
+  const currentYearFreightCost_RTVs = currentYearFreightCostRange.getRichTextValue();
+
+  const richTextBuilder = currentYearFreightCost_RTVs.copy() // RichTextValueBuilder
+  const richTextValues = currentYearFreightCost_RTVs.getRuns().map(richTextVal => [richTextVal.getText(), richTextVal.getTextStyle()])
+  var freight = (Number(richTextValues[1][0].replace(/\s/g, '')) + Number(shippingAmount)).toFixed(2)
+
+  if (freight.length > 7) // If the freight costs are $10 000, then separate the thousands place with a space
+    freight = freight.substring(0, 2) + ' ' + freight.substring(2)
+
+  const fullText = '$' + freight + ' in Freight (' + new Date().getFullYear() + ')';
+  const n = freight.length + 1;
+
+  const currentYearFreightCost = richTextBuilder.setText(fullText)
+    .setTextStyle(0, 1, richTextValues[0][1])
+    .setTextStyle(1, n, richTextValues[1][1])
+    .setTextStyle(n, fullText.length, richTextValues[2][1])
+    .build()
+
+  currentYearFreightCostRange.setRichTextValue(currentYearFreightCost)
+}
+
+/**
+ * This function updates the invoice sheet first by reseting the taxation information and then setting it appropriately based on the shopify data provided.
+ * All of the data is formatted to proper case and the phone numbers and postal codes are put in proper format as well. If the relevant data is provided
+ * by shopify, then the freight cost is estimated. All the items are placed on the Invoice and the price is adjusted appropriately if there is a discount.
+ * 
  * 
  * @param {Object[][]}  shopifyData : The data downloaded from shopify.
  * @param {Object[][]}    numRows   : The number of rows for the shopify data.
@@ -1969,9 +2399,9 @@ function updateActiveOrderPage(shopifyData, spreadsheet)
  * @param {Spreadsheet} spreadsheet : The active spreadsheet.
  * @author Jarren Ralf
  */
-function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
+function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
 {
-  const packingSlip = spreadsheet.getSheetByName('Invoice');
+  const invoice = spreadsheet.getSheetByName('Invoice');
   const col = 9; // Number of columns on the packing slip
   const numRowsPerPage = 49;
   const numItemsOnPageOne = 32;
@@ -2034,16 +2464,16 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
   const tax = 1 + checks.reduce((acc, val) => acc + val[0] , 0);
   const updatedSubTotal = shopifyData.reduce((acc, val) => acc + val[16]*val[18], 0);
   const freightCost = shopifyData[0][11] - shopifyData[0][51] - updatedSubTotal*tax; // Total - outstanding balance - subtotal*tax
-  const shippingMethod = packingSlip.getRange(14, 2);
-  const shippingCost = packingSlip.getRange(4, col);
+  const shippingMethod = invoice.getRange(14, 2);
+  const shippingCost = invoice.getRange(4, col);
   const formattedDate = Utilities.formatDate(new Date(), spreadsheet.getSpreadsheetTimeZone(), "dd MMMM yyyy");
   const shipDate = 'Ship Date: ' + formattedDate;
   const boldTextStyle = SpreadsheetApp.newTextStyle().setBold(true).setFontSize(12).build();
   const normalTextStyle = SpreadsheetApp.newTextStyle().setBold(false).setFontSize(10).build();
   const shipDate_RichText = SpreadsheetApp.newRichTextValue().setText('Ship Date: ' + formattedDate).setTextStyle(0, 10, boldTextStyle).setTextStyle(10, shipDate.length, normalTextStyle).build();
 
-  packingSlip.getRange(14, 4).setValue('')
-  packingSlip.getRange(14, 7).setRichTextValue(shipDate_RichText)
+  invoice.getRange(14, 4).setValue('')
+  invoice.getRange(14, 7).setRichTextValue(shipDate_RichText)
   shippingCost.setValue(freightCost)
 
   // Check the shipping method and make the relevant changes
@@ -2052,7 +2482,7 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
     case 'Richmond':
       shopifyData[0][34] = shopifyData[0][24]; // Name
       shopifyData[0][38] = 'Pacific Net & Twine';
-      shopifyData[0][36] = '3731 Moncton Street';
+      shopifyData[0][36] = '3731 Moncton St';
       shopifyData[0][39] = shopifyData[0][14]; // City
       shopifyData[0][41] = 'BC';
       shopifyData[0][40] = 'V7E 3A5';
@@ -2118,13 +2548,13 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
 
   if (numPages >= 2) // Two or more pages 
   {
-    packingSlip.getRange(numRowsPerPage + 1, col).setHorizontalAlignment('right').setValue('Page 1 of ' + numPages) // Put the page number on the bottom of page one
-    packingSlip.insertRowsAfter(numRowsPerPage + 1, (numPages - 1)*(numRowsPerPage))
+    invoice.getRange(numRowsPerPage + 1, col).setHorizontalAlignment('right').setValue('Page 1 of ' + numPages) // Put the page number on the bottom of page one
+    invoice.insertRowsAfter(numRowsPerPage + 1, (numPages - 1)*(numRowsPerPage))
 
-    if (packingSlip.getMaxRows() > numPages*numRowsPerPage + 1)
-      packingSlip.deleteRows(numPages*numRowsPerPage + 2, packingSlip.getMaxRows() - numPages*numRowsPerPage - 1)
+    if (invoice.getMaxRows() > numPages*numRowsPerPage + 1)
+      invoice.deleteRows(numPages*numRowsPerPage + 2, invoice.getMaxRows() - numPages*numRowsPerPage - 1)
 
-    packingSlip.getRange(16, 1, numItemsOnPageOne + 1, col) // Item information and formatting
+    invoice.getRange(16, 1, numItemsOnPageOne + 1, col) // Item information and formatting
       .setBorder(true, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
       .setHorizontalAlignments(new Array(numItemsOnPageOne + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
       .setVerticalAlignments(new Array(numItemsOnPageOne + 1).fill(new Array(col).fill('middle')))
@@ -2133,9 +2563,9 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
       .setNumberFormats([new Array(col).fill('@'), ...new Array(numItemsOnPageOne).fill(['@', '@', '@', '@', '@', '@', '@', '$#,##0.00', '$#,##0.00'])])
       .setValues([['Qty', 'SKU', 'Item', null, null, null, null, 'Price', 'Total'], ...itemInformation.slice(0, numItemsOnPageOne)])
     
-    const pntAddress = packingSlip.getRange(4, 1).getRichTextValue();
-    const emailHyperLink = packingSlip.getRange(numRowsPerPage + 1, 1).getRichTextValue()
-    const invoiceHeaderValues = packingSlip.getRange(1, col - 1, 6).getValues().map((v, i) => [v[0], '=I' + (i + 1)])
+    const pntAddress = invoice.getRange(4, 1).getRichTextValue();
+    const emailHyperLink = invoice.getRange(numRowsPerPage + 1, 1).getRichTextValue()
+    const invoiceHeaderValues = invoice.getRange(1, col - 1, 6).getValues().map((v, i) => [v[0], '=I' + (i + 1)])
     var subtotalAmount = '=SUM(Item_Totals_Page_1', rangeName = '';
 
     for (var n = 0; n < numPages - 1; n++)
@@ -2143,19 +2573,19 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
       var N = numRowsPerPage*n;
 
       rangeName = 'Item_Totals_Page_' + (n + 2);
-      spreadsheet.setNamedRange(rangeName, packingSlip.getRange(numRowsPerPage + 10 + N, col, numItemsPerPage))
+      spreadsheet.setNamedRange(rangeName, invoice.getRange(numRowsPerPage + 10 + N, col, numItemsPerPage))
       subtotalAmount += ',' + rangeName
 
-      packingSlip.setRowHeight(numRowsPerPage + 3 + N, 40)
+      invoice.setRowHeight(numRowsPerPage + 3 + N, 40)
         .setRowHeight(numRowsPerPage + 8 + N, 10)
         .setRowHeight(numRowsPerPage + 49 + N, 10)
         .getRange(numRowsPerPage + 9 + N, 3, numItemsPerPage + 1, 5).mergeAcross(); // Item (Description Field)
-      packingSlip.getRange(numRowsPerPage + 2 + N, 1, 3, 3).merge().setFormula('=A1'); // PNT Logo in Header
-      packingSlip.getRange(numRowsPerPage + 5 + N, 1, 3, 3).merge().setVerticalAlignment('middle').setHorizontalAlignment('left').setRichTextValue(pntAddress); // PNT Address in header
-      packingSlip.getRange(numRowsPerPage + 50 + N, 1, 1, 5).merge().setRichTextValue(emailHyperLink) // Email Hyperlink at bottom of each page
-      packingSlip.getRange(numRowsPerPage + 50 + N, col).setHorizontalAlignment('right').setValue('Page ' + (n + 2) + ' of ' + numPages) // Page number for the bottom of each page
+      invoice.getRange(numRowsPerPage + 2 + N, 1, 3, 3).merge().setFormula('=A1'); // PNT Logo in Header
+      invoice.getRange(numRowsPerPage + 5 + N, 1, 3, 3).merge().setVerticalAlignment('middle').setHorizontalAlignment('left').setRichTextValue(pntAddress); // PNT Address in header
+      invoice.getRange(numRowsPerPage + 50 + N, 1, 1, 5).merge().setRichTextValue(emailHyperLink) // Email Hyperlink at bottom of each page
+      invoice.getRange(numRowsPerPage + 50 + N, col).setHorizontalAlignment('right').setValue('Page ' + (n + 2) + ' of ' + numPages) // Page number for the bottom of each page
 
-      packingSlip.getRange(numRowsPerPage + 2 + N, 8, 6, 2) // Invoice header data
+      invoice.getRange(numRowsPerPage + 2 + N, 8, 6, 2) // Invoice header data
         .setFontColor('black').setFontFamily('Arial')
         .setFontSizes([[10, 10],[10, 9], ...new Array(4).fill([10, 10])])
         .setFontWeights(new Array(6).fill(['bold', 'normal']))
@@ -2165,7 +2595,7 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
         .setValues(invoiceHeaderValues) // Header Values
 
       if (n != numPages - 2)
-        packingSlip.getRange(numRowsPerPage + 9 + N, 1, numItemsPerPage + 1, col) // Item information and formatting
+        invoice.getRange(numRowsPerPage + 9 + N, 1, numItemsPerPage + 1, col) // Item information and formatting
           .setBorder(true, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
           .setHorizontalAlignments(new Array(numItemsPerPage + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
           .setVerticalAlignments(new Array(numItemsPerPage + 1).fill(new Array(col).fill('middle')))
@@ -2174,7 +2604,7 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
           .setNumberFormats([new Array(col).fill('@'), ...new Array(numItemsPerPage).fill(['@', '@', '@', '@', '@', '@', '@', '$#,##0.00', '$#,##0.00'])])
           .setValues([['Qty', 'SKU', 'Item', null, null, null, null, 'Price', 'Total'], ...itemInformation.slice(numItemsOnPageOne + numItemsPerPage*n, numItemsOnPageOne + numItemsPerPage*(n + 1))])
       else // Last Page
-        packingSlip.getRange(numRowsPerPage + 9 + N, 1, numItemsPerPage + 1, col) // Item information and formatting
+        invoice.getRange(numRowsPerPage + 9 + N, 1, numItemsPerPage + 1, col) // Item information and formatting
           .setBorder(true, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
           .setHorizontalAlignments(new Array(numItemsPerPage + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
           .setVerticalAlignments(new Array(numItemsPerPage + 1).fill(new Array(col).fill('middle')))
@@ -2188,11 +2618,11 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
 
     // setValues of total
     subtotalAmount += ')';
-    packingSlip.getRange(3, col).setFormula(subtotalAmount)
+    invoice.getRange(3, col).setFormula(subtotalAmount)
   }
   else
   {
-    packingSlip.getRange(16, 1, numItemsOnPageOne + 1, col) // Item information and formatting
+    invoice.getRange(16, 1, numItemsOnPageOne + 1, col) // Item information and formatting
       .setBorder(true, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
       .setHorizontalAlignments(new Array(numItemsOnPageOne + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
       .setVerticalAlignments(new Array(numItemsOnPageOne + 1).fill(new Array(col).fill('middle')))
@@ -2203,21 +2633,21 @@ function updatePackingSlip(shopifyData, numRows, numCols, spreadsheet)
         ...itemInformation.slice(0, itemInformation.length), 
         ...new Array(numItemsOnPageOne - itemInformation.length).fill(new Array(col).fill(''))])
 
-    if (packingSlip.getMaxRows() > numRowsPerPage + 1)
-      packingSlip.deleteRows(numRowsPerPage + 2, packingSlip.getMaxRows() - numRowsPerPage - 1) // One page, delete the extra rows
+    if (invoice.getMaxRows() > numRowsPerPage + 1)
+      invoice.deleteRows(numRowsPerPage + 2, invoice.getMaxRows() - numRowsPerPage - 1) // One page, delete the extra rows
       
-    packingSlip.getRange(numRowsPerPage + 1, col).setValue('') // Set the page number blank
+    invoice.getRange(numRowsPerPage + 1, col).setValue('') // Set the page number blank
 
     var namedRange = '';
 
-    packingSlip.getNamedRanges().map(rng => {
+    invoice.getNamedRanges().map(rng => {
       namedRange = rng.getName()
 
       if (namedRange[namedRange.length - 1] !== '1' && !isNaN(parseInt(namedRange[namedRange.length - 1]))) // If the range ends with a number that is not 1, then remove it
         rng.remove();
     })
 
-    packingSlip.getRange(3, col).setFormula('=SUM(Item_Totals_Page_1)')
+    invoice.getRange(3, col).setFormula('=SUM(Item_Totals_Page_1)')
   }
 
   checkboxRange.setValues(checks)
