@@ -1531,7 +1531,7 @@ function invoice_BackOrder()
 
     exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_Invoice);
     applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
-    savePDFsInDrive(sheet, spreadsheet)
+    //savePDFsInDrive(sheet, spreadsheet)
   }
 }
 
@@ -1635,7 +1635,7 @@ function invoice_Complete()
     
     exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_Invoice);
     applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
-    savePDFsInDrive(sheet, spreadsheet)
+    //savePDFsInDrive(sheet, spreadsheet)
   }
 }
 
@@ -1742,7 +1742,7 @@ function invoice_HFPU()
 
     exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_Invoice);
     applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
-    savePDFsInDrive(sheet, spreadsheet)
+    //savePDFsInDrive(sheet, spreadsheet)
   }
 }
 
