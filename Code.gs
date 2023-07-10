@@ -246,9 +246,11 @@ function applyFormatting(sheets)
 
     if (sheetName === 'Status Page')
     {
+      const richTextValues = sheets[s].getRange(1, 9, 1, 3).getRichTextValues()
+
       range = sheets[s].setColumnWidth(1, 75).setColumnWidth(2, 30).setColumnWidth(3, 140).setColumnWidth(4, 331)
         .setColumnWidth(5, 117).setColumnWidth(6, 122).setColumnWidth( 7, 118).setColumnWidth(8, 248)
-        .setColumnWidth(9, 110).setColumnWidths(10, 120, 2).setColumnWidth(12, 100)
+        .setColumnWidth(9, 110).setColumnWidths(10, 2, 120).setColumnWidth(12, 100)
         .getDataRange();
       lastRow = range.getLastRow()
       lastCol = range.getLastColumn()
@@ -262,6 +264,7 @@ function applyFormatting(sheets)
         .setFontSizes([[...new Array(lastCol - 4).fill(18), ...new Array(4).fill(14)], ...new Array(lastRow - 1).fill(new Array(lastCol).fill(12))])
         .setHorizontalAlignments([['center', ...new Array(lastCol - 1).fill('left')], new Array(lastCol).fill('left'), 
           ...new Array(lastRow - 2).fill(['left', 'middle', ...new Array(lastCol - 3).fill('left'), 'right'])])
+        .offset(0, 8, 1, 3).setRichTextValues(richTextValues)
     }
     else if (sheetName === 'Invoice')
     {
