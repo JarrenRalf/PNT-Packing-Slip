@@ -670,18 +670,19 @@ function doesPhoneNumberStartWithOne(p)
 function downloadButton()
 {
   const spreadsheet = SpreadsheetApp.getActive()
-  const invoiceSheet = spreadsheet.getSheetByName('Invoice')
   const packingSlipSheet = spreadsheet.getSheetByName('Packing Slip')
+  const invoiceSheet = spreadsheet.getSheetByName('Invoice')
   const customerName = invoiceSheet.getSheetValues(8, 6, 1, 1)[0][0]
-  const invoicePdf = getAsBlob(spreadsheet, invoiceSheet).getAs('application/pdf').setName(customerName + "_Invoice.pdf")
-  const packingSlipPdf = getAsBlob(spreadsheet, packingSlipSheet).getAs('application/pdf').setName(customerName + "_PackingSlip.pdf")
+  const orderNum = invoiceSheet.getSheetValues(1, 9, 1, 1)[0][0]
+  const packingSlipPdf = getAsBlob(spreadsheet, packingSlipSheet).getAs('application/pdf').setName((customerName + "_" + orderNum +"_PackingSlip.pdf").replace(/\s/g, ''))
+  const invoicePdf = getAsBlob(spreadsheet, invoiceSheet).getAs('application/pdf').setName((customerName + "_" + orderNum +"_Invoice.pdf").replace(/\s/g, ''))
   var htmlTemplate = HtmlService.createTemplateFromFile('DownloadButton');
-  const invoiceFile = DriveApp.createFile(invoicePdf)
-  const packingSlipFile = DriveApp.createFile(packingSlipPdf)
-  htmlTemplate.url1 = invoiceFile.getDownloadUrl();
-  htmlTemplate.url2 = packingSlipFile.getDownloadUrl();
-  htmlTemplate.fileId1 = invoiceFile.getId();
-  htmlTemplate.fileId2 = packingSlipFile.getId();
+  const packingSlipFile = DriveApp.createFile(packingSlipPdf);
+  const invoiceFile = DriveApp.createFile(invoicePdf);
+  htmlTemplate.url1 = packingSlipFile.getDownloadUrl();
+  htmlTemplate.url2 = invoiceFile.getDownloadUrl();
+  htmlTemplate.fileId1 = packingSlipFile.getId();
+  htmlTemplate.fileId2 = invoiceFile.getId();
   var html = htmlTemplate.evaluate().setWidth(250).setHeight(50);
   SpreadsheetApp.getUi().showModalDialog(html, 'Export');
 }
@@ -1482,30 +1483,15 @@ function invoice_BackOrder()
     const activeOrdersRange = activeOrdersPage.getRange(1, 1, activeOrdersPage.getLastRow(), activeOrdersPage.getLastColumn());
     const activeOrdersValues = activeOrdersRange.getValues()
     var values_ExportPage = [activeOrdersValues[0]]; // The shopify data used to create the export data for Adagio; initialize with the header
-    var rowsToDelete = []
 
     for (var j = 1; j < activeOrdersValues.length; j++)
     {
       if (activeOrdersValues[j][0] === currentOrder)
       {
         values_ExportPage.push(activeOrdersValues[j])
-
-        // for (var k = 0; k < itemValues_Invoice.length; k++)
-        // {
-        //   if (activeOrdersValues[j][20] === itemValues_Invoice[k][1])
-        //   {
-        //     activeOrdersValues[j][16] -= Number(itemValues_Invoice[k][1].split(' ', 1)[0])
-
-        //     if (activeOrdersValues[j][16] <= 0)
-        //       rowsToDelete.push(j + 1)
-        //   }
-        // }
         break;
       }
     }
-
-    // activeOrdersRange.setValues(activeOrdersValues)
-    // rowsToDelete.reverse().map(row => activeOrdersPage.deleteRow(row))
 
     if (values_ExportPage.length > 1)
     {
