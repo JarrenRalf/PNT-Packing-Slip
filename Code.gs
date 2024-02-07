@@ -1502,9 +1502,10 @@ function invoice_BackOrder()
         Array.from(new Set(completedOrdersPage.getSheetValues(2, 1, numCompletedOrders, 1)
           .concat([[currentOrder + ' - Back Order']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1).map(JSON.stringify)), JSON.parse)
 
-      ordersOnCompletePage.unshift([(numCompletedOrders + 1) + ' Invoices Created'])
+      const lastOrder = ordersOnCompletePage[0][0].split(' - ', 1)[0];
+      ordersOnCompletePage.unshift(['Last ' + lastOrder]);
       completedOrdersPage.getRange(1, 1, numCompletedOrders + 2).setValues(ordersOnCompletePage)
-      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue((numCompletedOrders + 1) + ' Invoices Created').offset(0, 10)
+      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue('Last ' + lastOrder).offset(0, 10)
       updateCurrentYearFreightCost(currentYearFreightCostRange, shippingAmount)
 
       const completedOrderData = getInvoiceDataForAll_Completed_Orders(currentOrder + ' - Back Order', itemValues_Invoice, sheet)
@@ -1519,6 +1520,14 @@ function invoice_BackOrder()
     applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
     //savePDFsInDrive(sheet, spreadsheet)
   }
+}
+
+function testShit()
+{
+  const array = [2, 3, 4, 5]
+  array.unshift(array[0])
+  Logger.log(array)
+
 }
 
 /**
@@ -1606,9 +1615,10 @@ function invoice_Complete()
       const ordersOnCompletePage = (numCompletedOrders === -1) ? [[currentOrder + ' - Complete']] : 
         completedOrdersPage.getSheetValues(2, 1, numCompletedOrders, 1).concat([[currentOrder + ' - Complete']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1);
 
-      ordersOnCompletePage.unshift([(numCompletedOrders + 1) + ' Invoices Created'])
+      const lastOrder = ordersOnCompletePage[0][0].split(' - ', 1)[0];
+      ordersOnCompletePage.unshift(['Last ' + lastOrder])
       completedOrdersPage.getRange(1, 1, numCompletedOrders + 2).setValues(ordersOnCompletePage)
-      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue((numCompletedOrders + 1) + ' Invoices Created').offset(0, 10)
+      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue('Last ' + lastOrder).offset(0, 10)
       updateCurrentYearFreightCost(currentYearFreightCostRange, shippingAmount)
 
       const completedOrderData = getInvoiceDataForAll_Completed_Orders(currentOrder + ' - Complete', itemValues_Invoice, sheet)
@@ -1712,10 +1722,10 @@ function invoice_HFPU()
         Array.from(new Set(completedOrdersPage.getSheetValues(2, 1, numCompletedOrders, 1)
           .concat([[currentOrder + ' - Hold For Pick Up']]).sort((a, b) => (a[0] < b[0]) ? 1 : -1).map(JSON.stringify)), JSON.parse)
 
-      ordersOnCompletePage.unshift([(numCompletedOrders + 1) + ' Invoices Created'])
-      
+      const lastOrder = ordersOnCompletePage[0][0].split(' - ', 1)[0];
+      ordersOnCompletePage.unshift(['Last ' + lastOrder])
       completedOrdersPage.getRange(1, 1, numCompletedOrders + 2).setValues(ordersOnCompletePage)
-      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue((numCompletedOrders + 1) + ' Invoices Created').offset(0, 10)
+      const currentYearFreightCostRange = statusPage.getRange(1, 1).setValue('Last ' + lastOrder).offset(0, 10)
       updateCurrentYearFreightCost(currentYearFreightCostRange, shippingAmount)
 
       const completedOrderData = getInvoiceDataForAll_Completed_Orders(currentOrder + ' - Hold For Pick Up', itemValues_Invoice, sheet)
@@ -1944,9 +1954,10 @@ function removeCompleteOrdersButton()
       .concat(completedOrders.map(v => [v + ' - Completed']), pickedUpOrders.map(v => [v + ' - Completed']), cancelledOrders.map(v => [v + ' - Cancelled']))
       .sort((a, b) => (a[0] < b[0]) ? 1 : -1);
 
+  const lastOrder = ordersOnCompletePage[0][0].split(' - ', 1)[0];
   numCompletedOrders = ordersOnCompletePage.length;
-  ordersOnCompletePage.unshift([ordersOnCompletePage.length + ' Invoices Created'])
-  sheet.getRange(1, 1).setValue((numCompletedOrders + 1) + ' Invoices Created')
+  ordersOnCompletePage.unshift(['Last ' + lastOrder])
+  sheet.getRange(1, 1).setValue('Last ' + lastOrder)
 
   completedOrdersPage.getRange(1, 1, numCompletedOrders + 1).setValues(ordersOnCompletePage)
 
