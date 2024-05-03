@@ -1008,7 +1008,9 @@ function getFreightLine(cost, country)
 function getHeaderLine(data, province, country)
 {
   return ['H',                                 // Line Type Code (H: Header, S: Shipping, D: Detail)
-    "C4458",                                   // Account Number
+    (isAccountNumberProvided(data[56])) ?
+      data[56].toString().split('Acct# ').pop().trim() 
+      : "C4458",                               // Account Number
     'Ord# ' + data[0].replace(/\D/g, ''),      // Order Number
     (isPickUp(data)) ? 'PICK UP' : 'MAIL',     // Shipping Method
     getTaxCode_Order(data, province, country), // Tax Code
@@ -1314,6 +1316,18 @@ function getTrackingNumberURL(trackingNumber, shippingMethod)
     default:
       return ""
   }
+}
+
+/**
+ * This function checks if the particular order contains an account number in the shopify order Tags field.
+ * 
+ * @param {String} accountNumber : The string from the shopify order's Tags field, if not blank, it should start with "Acct# " followed by the account number
+ * @return Returns true if the Tags field of the shopify data begins with "Acct# " or false otherwise.
+ * @author Jarren Ralf
+ */
+function isAccountNumberProvided(accountNumber)
+{
+  return accountNumber.startsWith("Acct# ");
 }
 
 /**
