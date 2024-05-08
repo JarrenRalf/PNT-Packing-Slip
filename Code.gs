@@ -211,6 +211,11 @@ function onOpen()
     .addItem('Email Invoice To Customer', 'email_Invoice')
     .addItem('Email Invoice To Customer with Comments', 'email_InvoiceWithComments')
     .addSeparator()
+    .addSubMenu(ui.createMenu('Convert Pricing')
+      .addItem('Guide', 'convertPricing_Guide')
+      .addItem('Lodge', 'convertPricing_Lodge')
+      .addItem('Wholesale', 'convertPricing_Wholesale'))
+    .addSeparator()
     .addItem('Apply Formatting', 'applyFormatting')
     //.addItem('Display Shipping Calculator', 'displayShippingCalculator')
     .addSeparator()
@@ -599,6 +604,97 @@ function clearExportPage()
   }
   else
     sheet.clear(); 
+}
+
+/**
+ * This function convert the SKUs on the invoice to from base price to Wholesale price.
+ * 
+ * @param {Number} PRICE : This is the index value that selects for the appropriate discount structure.
+ * @author Jarren Ralf
+ */
+function convertPricing(PRICE)
+{
+  const spreadsheet = SpreadsheetApp.getActive();
+  const invoiceSheet = spreadsheet.getActiveSheet();
+
+  if (invoiceSheet.getSheetName() !== 'Invoice')
+  {
+    spreadsheet.toast('You must be on the Export sheet to run this function. Please try again.')
+    spreadsheet.getSheetByName('Invoice').activate();
+  }
+  else 
+  {
+    const discountSheet = SpreadsheetApp.openById('1gXQ7uKEYPtyvFGZVmlcbaY6n6QicPBhnCBxk-xqwcFs').getSheetByName('Discount Percentages');
+    const discounts = discountSheet.getSheetValues(2, 11, discountSheet.getLastRow() - 1, 5);
+    const BASE_PRICE = 1, numItemsOnPageOne = 32, numCols = 9;
+    var newPrice;
+
+    const range = invoiceSheet.getRange(17, 1, numItemsOnPageOne, numCols);
+    const values = range.getValues().map(item => {
+      if (isNotBlank(item[1]))
+      {
+        itemPricing = discounts.find(sku => sku[0].split(' - ').pop().toString().toUpperCase() === item[1]);
+
+        if (itemPricing != undefined)
+        {
+          newPrice = (itemPricing[BASE_PRICE]*(100 - itemPricing[PRICE])/100).toFixed(2);
+
+          if (Number(newPrice) < item[7])
+          {
+            item[7] = newPrice;
+            item[8] = (Number(newPrice)*Number(item[0].split(' x').shift())).toFixed(2);
+          }
+        }
+
+        return item
+      }
+      else
+        return item;
+    })
+
+    range.setBorder(false, true, true, true, true, false).setFontColor('black').setFontFamily('Arial')
+      .setHorizontalAlignments(new Array(numItemsOnPageOne).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
+      .setVerticalAlignments(new Array(numItemsOnPageOne).fill(new Array(numCols).fill('middle')))
+      .setFontSizes(new Array(numItemsOnPageOne).fill(new Array(numCols).fill(9)))
+      .setFontWeights(new Array(numItemsOnPageOne).fill(new Array(numCols).fill('normal')))
+      .setNumberFormats(new Array(numItemsOnPageOne).fill(['@', '@', '@', '@', '@', '@', '@', '$#,##0.00', '$#,##0.00']))
+      .setValues(values);
+
+    spreadsheet.toast((PRICE === 2) ? 'GUIDE discount applied.' : (PRICE === 3) ? 'LODGE discount applied.' : 'WHOLESALE discount applied.', 'Pricing Changed')
+  }
+}
+
+/**
+ * This function convert the SKUs on the invoice to from base price to Guide price.
+ * 
+ * @author Jarren Ralf
+ */
+function convertPricing_Guide()
+{
+  const GUIDE_PRICE = 2;
+  convertPricing(GUIDE_PRICE);
+}
+
+/**
+ * This function convert the SKUs on the invoice to from base price to Lodge price.
+ * 
+ * @author Jarren Ralf
+ */
+function convertPricing_Lodge()
+{
+  const LODGE_PRICE = 3;
+  convertPricing(LODGE_PRICE);
+}
+
+/**
+ * This function convert the SKUs on the invoice to from base price to Wholesale price.
+ * 
+ * @author Jarren Ralf
+ */
+function convertPricing_Wholesale()
+{
+  const WHOLESALE_PRICE = 4;
+  convertPricing(WHOLESALE_PRICE);
 }
 
 /**
