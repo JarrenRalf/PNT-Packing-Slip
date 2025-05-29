@@ -199,30 +199,28 @@ function onOpen()
   var ui = SpreadsheetApp.getUi();
 
   ui.createMenu('Invoice Controls')
-    .addItem('COMPLETE', 'invoice_Complete')
-    .addItem('Hold For Pick Up', 'invoice_HFPU')
-    .addItem('Back Order', 'invoice_BackOrder')
-    .addSubMenu(ui.createMenu('Show Items')
-      .addItem('ALL Items', 'showItems_all')
-      .addItem('Pending ONLY', 'showItems_pending')
-      .addItem('Fulfilled ONLY', 'showItems_fulfilled')
-      .addItem('Unfulfilled ONLY', 'showItems_unfulfilled')
-      .addItem('Pending & Fulfilled', 'showItems_pending_AND_fulfilled'))
-    .addItem('Email Invoice To Customer', 'email_Invoice')
-    .addItem('Email Invoice To Customer with Comments', 'email_InvoiceWithComments')
-    .addSeparator()
-    .addSubMenu(ui.createMenu('Convert Pricing')
-      .addItem('Guide', 'convertPricing_Guide')
-      .addItem('Lodge', 'convertPricing_Lodge')
-      .addItem('Wholesale', 'convertPricing_Wholesale'))
-    .addSeparator()
-    .addItem('Apply Formatting', 'applyFormatting')
-    //.addItem('Display Shipping Calculator', 'displayShippingCalculator')
-    .addSeparator()
-    .addItem('Clear Export Page', 'clearExportPage')
-    .addSeparator()
+    .addItem('Complete Order & Send to Export', 'invoice_Complete')
+    .addItem('Email Invoice To Customer', 'email_Invoice') 
     .addItem('Download Packing Slip and Invoice', 'downloadButton')
-    .addToUi();
+    .addSeparator()   
+    .addItem('Apply Formatting', 'applyFormatting')
+    .addSubMenu(ui.createMenu('Convert Pricing')
+    .addItem('Guide', 'convertPricing_Guide')
+    .addItem('Lodge', 'convertPricing_Lodge')
+    .addItem('Wholesale', 'convertPricing_Wholesale'))
+    .addItem('Clear Export Page', 'clearExportPage')
+
+//    .addItem('Hold For Pick Up', 'invoice_HFPU')
+//    .addItem('Back Order', 'invoice_BackOrder')
+//    .addSubMenu(ui.createMenu('Show Items')
+//      .addItem('ALL Items', 'showItems_all')
+//      .addItem('Pending ONLY', 'showItems_pending')
+//      .addItem('Fulfilled ONLY', 'showItems_fulfilled')
+//      .addItem('Unfulfilled ONLY', 'showItems_unfulfilled')
+//      .addItem('Pending & Fulfilled', 'showItems_pending_AND_fulfilled'))
+//    .addItem('Email Invoice To Customer with Comments', 'email_InvoiceWithComments')
+//    .addItem('Display Shipping Calculator', 'displayShippingCalculator')
+     .addToUi();
 
   resetArrayFormula_PackingSlip();
   resetNamedRange_Invoice()
@@ -294,10 +292,10 @@ function applyFormatting(sheets)
 
       subtotalAmount += ')';
 
-      const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('http://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
+      // const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('http://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
 
-      const pntAddress = SpreadsheetApp.newRichTextValue().setText('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
-        .setLinkUrl(91, 117, 'https://www.pacificnetandtwine.com/').build()
+      // const pntAddress = SpreadsheetApp.newRichTextValue().setText('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
+      //   .setLinkUrl(91, 117, 'https://www.pacificnetandtwine.com/').build()
 
       const boldTextStyle = SpreadsheetApp.newTextStyle().setBold(true).setFontSize(12).build();
       const shipDate = SpreadsheetApp.newRichTextValue().setText('Ship Date: ' + Utilities.formatDate(new Date(), spreadsheet.getSpreadsheetTimeZone(), "dd MMMM yyyy"))
@@ -322,8 +320,8 @@ function applyFormatting(sheets)
           .setValues([['Web Order Number', '=Last_Import!A2'], ['Ordered Date', '=INDEX(SPLIT(Last_Import!P2, " "), 1, 1)'], 
             ['Subtotal Amount:', subtotalAmount], ['Shipping Amount:', shippingAmount], 
             ['Taxes:', '=Items_Tax+Shipping_Tax'], ['Order Total:', '=SUM(Order_Subtotals)']])
-        .offset(3, -7) // PNT Address
-          .setRichTextValue(pntAddress)
+        .offset(3, -7, 1, 1) // PNT Address
+          .setValue('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
         .offset(4, 0, 5) // The value "SHIP" in the header of the packing slip
           .setBackground('#d9d9d9').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
           .setFontLine('none').setFontSize(14).setFontStyle('normal').setFontWeight('bold').setHorizontalAlignment('center').setNumberFormat('@')
@@ -332,7 +330,7 @@ function applyFormatting(sheets)
           .mergeAcross().setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
           .setFontLine('none').setFontSize(10).setFontStyle('normal').setFontWeight('normal').setHorizontalAlignment('left').setNumberFormat('@')
           .setVerticalAlignment('middle').setVerticalText(false).setFormulas([['Last_Import!AI2', null], ['Last_Import!AM2', null], 
-            ['Last_Import!AK2', null], ['Last_Import!AN2&", "&Last_Import!AP2&", "&Last_Import!AO2&", "&Last_Import!AQ2', null], ['Last_Import!AR2', null]])
+            ['Last_Import!AK2', null], ['Last_Import!AN2&", "&Last_Import!AP2&", "&Last_Import!AO2&", "&Last_Import!AQ2', null], ['IF(ISBLANK(Last_Import!AR2),Last_Import!B2,Last_Import!AR2)', null]])
         .offset(0, 3, 5, 1) // The value "BILL" in the header of the packing slip
           .setBackground('#d9d9d9').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
           .setFontLine('none').setFontSize(14).setFontStyle('normal').setFontWeight('bold').setHorizontalAlignment('center').setNumberFormat('@')
@@ -341,7 +339,7 @@ function applyFormatting(sheets)
           .mergeAcross().setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
           .setFontLine('none').setFontSize(10).setFontStyle('normal').setFontWeight('normal').setHorizontalAlignment('left').setNumberFormat('@')
           .setVerticalAlignment('middle').setVerticalText(false).setFormulas([['Last_Import!Y2', null, null, null], ['Last_Import!AC2', null, null, null], ['Last_Import!AA2', null, null, null], 
-            ['Last_Import!AD2&", "&Last_Import!AF2&", "&Last_Import!AE2&", "&Last_Import!AG2', null, null, null], ['Last_Import!AH2', null, null, null]])
+            ['Last_Import!AD2&", "&Last_Import!AF2&", "&Last_Import!AE2&", "&Last_Import!AG2', null, null, null], ['IF(ISBLANK(Last_Import!AH2),Last_Import!B2,Last_Import!AH2)', null, null, null]])
         .offset(6, -5, 1, col) // The shipping values
           .setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
           .setFontLine('none').setFontStyle('normal').setNumberFormat('@').setVerticalAlignment('middle').setVerticalText(false)
@@ -379,10 +377,10 @@ function applyFormatting(sheets)
             .setFontWeights(new Array(7).fill(['bold', 'normal']))
             .setValues([['', 'Page ' + (n + 1) + ' of ' + numPages], ['Web Order Number', '=I1'], ['Ordered Date', '=I2'], 
               ['Subtotal Amount:', '=I3'], ['Shipping Amount:', '=I4'], ['Taxes:', '=I5'], ['Order Total:', '=I6']])
-          .offset(1, -7, 1, 1) // PNT Logo on each page
-            .setValue(pntLogo)
+          // .offset(1, -7, 1, 1) // PNT Logo on each page
+          //   .setValue(pntLogo)
           .offset(3, 0, 1, 1) // PNT Address on each page
-            .setRichTextValue(pntAddress)
+            .setValue('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
           .offset(4, 2, numItemsPerPage + 1, 5) // Item column on each page
             .mergeAcross()
           .offset(0, -2, numItemsPerPage + 1, col) // Item information on each page
@@ -469,9 +467,9 @@ function applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
   const col = 9; // Number of columns on the packing slip
   const numItemsOnPageOne = 32;
   const boldTextStyle = SpreadsheetApp.newTextStyle().setBold(true).setFontSize(12).build();
-  //const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('http://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
-  const pntAddress = SpreadsheetApp.newRichTextValue().setText('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
-    .setLinkUrl(91, 117, 'https://www.pacificnetandtwine.com/').build()
+  // const pntLogo = SpreadsheetApp.newCellImage().toBuilder().setSourceUrl('http://cdn.shopify.com/s/files/1/0018/7079/0771/files/logoh_180x@2x.png?v=1613694206').build();
+  // const pntAddress = SpreadsheetApp.newRichTextValue().setText('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
+  //   .setLinkUrl(91, 117, 'https://www.pacificnetandtwine.com/').build()
   const shipDate = SpreadsheetApp.newRichTextValue().setText('Ship Date: ' + Utilities.formatDate(new Date(), spreadsheet.getSpreadsheetTimeZone(), "dd MMMM yyyy"))
     .setTextStyle(0, 10, boldTextStyle).build();
   const emailHyperLink = SpreadsheetApp.newRichTextValue().setText('If you have any questions, please send an email to: websales@pacificnetandtwine.com')
@@ -493,8 +491,8 @@ function applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
     .setValues([['Web Order Number', '=Last_Import!A2'], ['Ordered Date', '=INDEX(SPLIT(Last_Import!P2, " "), 1, 1)'], 
       ['Subtotal Amount:', subtotalAmount], ['Shipping Amount:', shippingAmount], 
       ['Taxes:', '=Items_Tax+Shipping_Tax'], ['Order Total:', '=SUM(Order_Subtotals)']])
-  .offset(3, -7) // PNT Address
-    .setRichTextValue(pntAddress)
+  .offset(3, -7, 1, 1) // PNT Address
+    .setValue('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
   .offset(4, 0, 5) // The value "SHIP" in the header of the packing slip
     .setBackground('#d9d9d9').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
     .setFontLine('none').setFontSize(14).setFontStyle('normal').setFontWeight('bold').setHorizontalAlignment('center').setNumberFormat('@')
@@ -601,9 +599,11 @@ function clearExportPage()
   {
     spreadsheet.toast('You must be on the Export sheet to run this function. Please try again.')
     spreadsheet.getSheetByName('Export').activate().clear();
+    spreadsheet.getRange('A1').activate();
   }
   else
     sheet.clear(); 
+    spreadsheet.getRange('A1').activate();
 }
 
 /**
@@ -641,6 +641,9 @@ function convertPricing(PRICE)
 
           if (Number(newPrice) < item[7])
           {
+            if (itemPricing[PRICE] > 0)
+              item[2] = item[2] + ' - (' + (((PRICE !== 4) ? ((PRICE !== 3) ? 'Guide' : 'Lodge' ) : 'Wholesale')) + ': '+ itemPricing[PRICE] + '% off)';
+
             item[7] = newPrice;
             item[8] = (Number(newPrice)*Number(item[0].split(' x').shift())).toFixed(2);
           }
@@ -704,8 +707,9 @@ function convertPricing_Wholesale()
  */
 function createTriggers()
 {
-  ScriptApp.newTrigger('onChange').forSpreadsheet('1QIKO0KcWPYoP4yR5c22jvbY0Ldsx9tO4MqyrMiTTzBc').onChange().create() // This is an installable onChange trigger
-  ScriptApp.newTrigger('installedOnEdit').forSpreadsheet('1QIKO0KcWPYoP4yR5c22jvbY0Ldsx9tO4MqyrMiTTzBc').onEdit().create() // This is an installable onChange trigger
+  const ss = SpreadsheetApp.getActive()
+  ScriptApp.newTrigger('onChange').forSpreadsheet(ss).onChange().create() // This is an installable onChange trigger
+  ScriptApp.newTrigger('installedOnEdit').forSpreadsheet(ss).onEdit().create() // This is an installable onChange trigger
   ScriptApp.newTrigger('removeOldOrdersFrom_All_Completed_OrdersArchive').timeBased().everyWeeks(2).onWeekDay(ScriptApp.WeekDay.SUNDAY).create()
   ScriptApp.newTrigger("resetCurrentYearFreightCounterAnnually").timeBased().onMonthDay(1).atHour(2).create();
 }
@@ -2271,7 +2275,7 @@ function showItems(fulfilmentStatus)
           .setNumberFormats([new Array(col).fill('@'), ...new Array(numItemsOnPageOne).fill(['@', '@', '@', '@', '@', '@', '@', '$#,##0.00', '$#,##0.00'])])
           .setValues([['Qty', 'SKU', 'Item', null, null, null, null, 'Price', 'Total'], ...itemInformation.slice(0, numItemsOnPageOne)])
         
-        const pntAddress = invoice.getRange(4, 1).getRichTextValue();
+        const pntAddress = invoice.getRange(4, 1).getValue();
         const emailHyperLink = invoice.getRange(numRowsPerPage + 1, 1).getRichTextValue();
         const invoiceHeaderValues = invoice.getRange(1, col - 1, 6).getValues().map((v, i) => [v[0], '=I' + (i + 1)])
         var subtotalAmount = '=SUM(Item_Totals_Page_1', rangeName = '';
@@ -2289,7 +2293,7 @@ function showItems(fulfilmentStatus)
             .setRowHeight(numRowsPerPage + 49 + N, 10)
             .getRange(numRowsPerPage + 9 + N, 3, numItemsPerPage + 1, 5).mergeAcross(); // Item (Description Field)
           invoice.getRange(numRowsPerPage + 2 + N, 1, 3, 3).merge().setFormula('=A1'); // PNT Logo in Header
-          invoice.getRange(numRowsPerPage + 5 + N, 1, 3, 3).merge().setVerticalAlignment('middle').setHorizontalAlignment('left').setRichTextValue(pntAddress); // PNT Address in header
+          invoice.getRange(numRowsPerPage + 5 + N, 1, 3, 3).merge().setVerticalAlignment('middle').setHorizontalAlignment('left').setValue(pntAddress); // PNT Address in header
           invoice.getRange(numRowsPerPage + 50 + N, 1, 1, 5).merge().setRichTextValue(emailHyperLink) // Email Hyperlink at bottom of each page
           invoice.getRange(numRowsPerPage + 50 + N, col).setHorizontalAlignment('right').setValue('Page ' + (n + 2) + ' of ' + numPages) // Page number for the bottom of each page
 
@@ -2571,9 +2575,13 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
     }
   }
 
-  const tax = 1 + checks.reduce((acc, val) => acc + val[0] , 0);
-  const updatedSubTotal = shopifyData.reduce((acc, val) => acc + val[16]*val[18], 0);
-  const freightCost = shopifyData[0][11] - shopifyData[0][51] - updatedSubTotal*tax; // Total - outstanding balance - subtotal*tax
+  /* Order Totals have been off by 1 cent. It was determined that there seemed to be a rounding problem.
+   * The "twoDecimals" function was added in multiple instances below do hopefully eliminate this problem.
+   */
+  
+  const tax = 1 + twoDecimals(checks.reduce((acc, val) => acc + val[0] , 0));
+  const updatedSubTotal = twoDecimals(shopifyData.reduce((acc, val) => acc + twoDecimals(val[16]*val[18]), 0));
+  const freightCost = twoDecimals(shopifyData[0][11]) - twoDecimals(shopifyData[0][51]) - twoDecimals(updatedSubTotal*tax); // Total - outstanding balance - subtotal*tax
   const shippingMethod = invoice.getRange(14, 2);
   const shippingCost = invoice.getRange(4, col);
   const formattedDate = Utilities.formatDate(new Date(), spreadsheet.getSpreadsheetTimeZone(), "dd MMMM yyyy");
@@ -2673,7 +2681,7 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
       .setNumberFormats([new Array(col).fill('@'), ...new Array(numItemsOnPageOne).fill(['@', '@', '@', '@', '@', '@', '@', '$#,##0.00', '$#,##0.00'])])
       .setValues([['Qty', 'SKU', 'Item', null, null, null, null, 'Price', 'Total'], ...itemInformation.slice(0, numItemsOnPageOne)])
     
-    const pntAddress = invoice.getRange(4, 1).getRichTextValue();
+    const pntAddress = invoice.getRange(4, 1).getValue();
     const emailHyperLink = invoice.getRange(numRowsPerPage + 1, 1).getRichTextValue()
     const invoiceHeaderValues = invoice.getRange(1, col - 1, 6).getValues().map((v, i) => [v[0], '=I' + (i + 1)])
     var subtotalAmount = '=SUM(Item_Totals_Page_1', rangeName = '';
@@ -2691,7 +2699,7 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
         .setRowHeight(numRowsPerPage + 49 + N, 10)
         .getRange(numRowsPerPage + 9 + N, 3, numItemsPerPage + 1, 5).mergeAcross(); // Item (Description Field)
       invoice.getRange(numRowsPerPage + 2 + N, 1, 3, 3).merge().setFormula('=A1'); // PNT Logo in Header
-      invoice.getRange(numRowsPerPage + 5 + N, 1, 3, 3).merge().setVerticalAlignment('middle').setHorizontalAlignment('left').setRichTextValue(pntAddress); // PNT Address in header
+      invoice.getRange(numRowsPerPage + 5 + N, 1, 3, 3).merge().setVerticalAlignment('middle').setHorizontalAlignment('left').setValue(pntAddress); // PNT Address in header
       invoice.getRange(numRowsPerPage + 50 + N, 1, 1, 5).merge().setRichTextValue(emailHyperLink) // Email Hyperlink at bottom of each page
       invoice.getRange(numRowsPerPage + 50 + N, col).setHorizontalAlignment('right').setValue('Page ' + (n + 2) + ' of ' + numPages) // Page number for the bottom of each page
 
