@@ -229,7 +229,7 @@ function onOpen()
 
 /**
  * This function loops through all of the sheets in the spreadsheet and formats them. If an argument is passed to the function in the
- * form of an array of Sheet objects, then the fucntion will apply formatting to only those specific sheets.
+ * form of an array of Sheet objects, then the function will apply formatting to only those specific sheets.
  * 
  * @param {Sheet[]} sheets : The set of sheets in the spreadsheet to be formatted.
  * @author Jarren Ralf
@@ -330,7 +330,7 @@ function applyFormatting(sheets)
           .mergeAcross().setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
           .setFontLine('none').setFontSize(10).setFontStyle('normal').setFontWeight('normal').setHorizontalAlignment('left').setNumberFormat('@')
           .setVerticalAlignment('middle').setVerticalText(false).setFormulas([['Last_Import!AI2', null], ['Last_Import!AM2', null], 
-            ['Last_Import!AK2', null], ['Last_Import!AN2&", "&Last_Import!AP2&", "&Last_Import!AO2&", "&Last_Import!AQ2', null], ['IF(ISBLANK(Last_Import!AR2),Last_Import!B2,Last_Import!AR2)', null]])
+            ['Last_Import!AK2&" "&Last_Import!AL2', null], ['Last_Import!AN2&", "&Last_Import!AP2&", "&Last_Import!AO2&", "&Last_Import!AQ2', null], ['IF(ISBLANK(Last_Import!AR2),Last_Import!B2,Last_Import!AR2)', null]])
         .offset(0, 3, 5, 1) // The value "BILL" in the header of the packing slip
           .setBackground('#d9d9d9').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
           .setFontLine('none').setFontSize(14).setFontStyle('normal').setFontWeight('bold').setHorizontalAlignment('center').setNumberFormat('@')
@@ -338,7 +338,7 @@ function applyFormatting(sheets)
         .offset(0, 1, 5, 4) // The "BILL" values
           .mergeAcross().setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
           .setFontLine('none').setFontSize(10).setFontStyle('normal').setFontWeight('normal').setHorizontalAlignment('left').setNumberFormat('@')
-          .setVerticalAlignment('middle').setVerticalText(false).setFormulas([['Last_Import!Y2', null, null, null], ['Last_Import!AC2', null, null, null], ['Last_Import!AA2', null, null, null], 
+          .setVerticalAlignment('middle').setVerticalText(false).setFormulas([['Last_Import!Y2', null, null, null], ['Last_Import!AC2', null, null, null], ['Last_Import!AA2&" "&Last_Import!AB2', null, null, null], 
             ['Last_Import!AD2&", "&Last_Import!AF2&", "&Last_Import!AE2&", "&Last_Import!AG2', null, null, null], ['IF(ISBLANK(Last_Import!AH2),Last_Import!B2,Last_Import!AH2)', null, null, null]])
         .offset(6, -5, 1, col) // The shipping values
           .setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
@@ -501,7 +501,7 @@ function applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
     .mergeAcross().setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
     .setFontLine('none').setFontSize(10).setFontStyle('normal').setFontWeight('normal').setHorizontalAlignment('left').setNumberFormat('@')
     .setVerticalAlignment('middle').setVerticalText(false).setFormulas([['Last_Import!AI2', null], ['Last_Import!AM2', null], 
-      ['Last_Import!AK2', null], ['Last_Import!AN2&", "&Last_Import!AP2&", "&Last_Import!AO2&", "&Last_Import!AQ2', null], ['Last_Import!AR2', null]])
+      ['Last_Import!AK2&" "&Last_Import!AL2', null], ['Last_Import!AN2&", "&Last_Import!AP2&", "&Last_Import!AO2&", "&Last_Import!AQ2', null], ['Last_Import!AR2', null]])
   .offset(0, 3, 5, 1) // The value "BILL" in the header of the packing slip
     .setBackground('#d9d9d9').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
     .setFontLine('none').setFontSize(14).setFontStyle('normal').setFontWeight('bold').setHorizontalAlignment('center').setNumberFormat('@')
@@ -509,7 +509,7 @@ function applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
   .offset(0, 1, 5, 4) // The "BILL" values
     .mergeAcross().setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
     .setFontLine('none').setFontSize(10).setFontStyle('normal').setFontWeight('normal').setHorizontalAlignment('left').setNumberFormat('@')
-    .setVerticalAlignment('middle').setVerticalText(false).setFormulas([['Last_Import!Y2', null, null, null], ['Last_Import!AC2', null, null, null], ['Last_Import!AA2', null, null, null], 
+    .setVerticalAlignment('middle').setVerticalText(false).setFormulas([['Last_Import!Y2', null, null, null], ['Last_Import!AC2', null, null, null], ['Last_Import!AA2&" "&Last_Import!AB2', null, null, null], 
       ['Last_Import!AD2&", "&Last_Import!AF2&", "&Last_Import!AE2&", "&Last_Import!AG2', null, null, null], ['Last_Import!AH2', null, null, null]])
   .offset(6, -5, 1, col) // The shipping values
     .setBackground('white').setBorder(true, true, true, true, false, false).setFontColor('black').setFontFamily('Arial')
@@ -2576,7 +2576,7 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
   }
 
   /* Order Totals have been off by 1 cent. It was determined that there seemed to be a rounding problem.
-   * The "twoDecimals" function was added in multiple instances below do hopefully eliminate this problem.
+   * The "twoDecimals" function was added in multiple instances below to hopefully eliminate this problem.
    */
   
   const tax = 1 + twoDecimals(checks.reduce((acc, val) => acc + val[0] , 0));
