@@ -118,6 +118,8 @@ function installedOnEdit(e)
           checkboxRange.setValues(checks)
           sheet.getRange(5, 9).setFormula('=Items_Tax+Shipping_Tax')
         }
+
+        spreadsheet.toast('This is the tax toast')
       }
       else if (row == 14) 
       {
@@ -403,8 +405,8 @@ function applyFormatting(sheets)
     }
     else if (sheetName === 'Calculator')
     {
-      range = sheets[s].setColumnWidth(1, 15).setColumnWidths(2, 2, 100).setColumnWidth(4, 35).setColumnWidth(5, 170).setColumnWidth(6, 15)
-        .setRowHeightsForced(1, 1, 15).setRowHeights(2, 9, 25).setRowHeight(11, 15).getRange(1, 1, sheets[s].getMaxRows(), sheets[s].getMaxColumns());
+      range = sheets[s].setColumnWidth(1, 15).setColumnWidth(2, 193).setColumnWidth(3, 100).setColumnWidth(4, 35).setColumnWidth(5, 268).setColumnWidth(6, 15)
+        .setRowHeightsForced(1, 1, 15).setRowHeights(2, 10, 25).setRowHeight(12, 15).getRange(1, 1, sheets[s].getMaxRows(), sheets[s].getMaxColumns());
       lastRow = range.getLastRow()
       lastCol = range.getLastColumn()
 
@@ -416,8 +418,8 @@ function applyFormatting(sheets)
         .setHorizontalAlignments(new Array(lastRow).fill(['left', 'left', 'center', 'center', 'right', 'left']))
         .setBorder(true, true, true, true, false, false, 'black', SpreadsheetApp.BorderStyle.SOLID_THICK)
 
-      sheets[s].getRangeList(['B2:C3', 'B5:C6', 'B8:C8', 'B10:C10']).setBackground('white').setBorder(true, true, true, true, false, false, 'black', SpreadsheetApp.BorderStyle.SOLID_THICK)
-      sheets[s].getRange('D2:D10').uncheck()
+      sheets[s].getRangeList(['B2:C3', 'B5:C7', 'B9:C9', 'B11:C11']).setBackground('white').setBorder(true, true, true, true, false, false, 'black', SpreadsheetApp.BorderStyle.SOLID_THICK)
+      sheets[s].getRange('D2:D11').uncheck()
     }
     else if (sheetName === 'Export')
     {
@@ -2526,7 +2528,9 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
   spreadsheet.getRangeByName('Hidden_Checkbox').uncheck(); // This is the checkbox on the Packing Slip that adds 10%
   const calculator = spreadsheet.getSheetByName('Calculator');
   calculator.getRange(2, 3, 2).setFormulas([['=SubtotalAmount'], ['=ShippingAmount']])
-  calculator.getRange('D2:D10').uncheck()
+  calculator.getRange('D2:D11').uncheck()
+  const shippingCost = spreadsheet.getRangeByName('ShippingAmount');
+  shippingCost.setValue(shopifyData[0][9])
   const checkboxRange = spreadsheet.getRangeByName('Checkboxes'); // These are the checkboxes that control the taxation rate
   const checks = checkboxRange.getValues()
 
@@ -2551,39 +2555,46 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
   // Check the shipping country and province, then set the taxes accordingly by checking the appropriate box
   if (isBlank(shopifyData[0][41])) // Blank means the item is a pick up in BC, therefore charge 12%
   {
-    checks[0][0] = 0.12;
+    checks[0][0] = 0.05;
+    checks[1][0] = 0.07;
+    checks[8][0] = 0;
     spreadsheet.getRangeByName('ShippingAmount').setValue(0);
   }
   else
   {
     if (shopifyData[0][42] !== 'CA')
-      checks[5][0] = 0;
+      checks[7][0] = 0;
     else
     {
-      if (shopifyData[0][41] === 'BC') 
-        checks[0][0] = 0.12;
-      else if (shopifyData[0][41] === 'AB' || shopifyData[0][41] === 'NT' || shopifyData[0][41] === 'NU' || 
-               shopifyData[0][41] === 'YT' || shopifyData[0][41] === 'QC' || shopifyData[0][41] === 'MB' ||
-               shopifyData[0][41] === 'SK')
-        checks[1][0] = 0.05;
-      else if (shopifyData[0][41] === 'NS' || shopifyData[0][41] === 'NB' || shopifyData[0][41] === 'NL' || shopifyData[0][41] === 'PE')
-        checks[2][0] = 0.15;
+      if (shopifyData[0][41] === 'BC' || shopifyData[0][41] === 'MB') 
+      {
+        checks[0][0] = 0.05;
+        checks[1][0] = 0.07;
+      }
+      else if (shopifyData[0][41] === 'QC')
+      {
+        checks[0][0] = 0.05;
+        // checks[2][0] = 0.09975; As Per Frank, do not charge the QST according to Adrian
+      }
+      else if (shopifyData[0][41] === 'SK')
+      {
+        checks[0][0] = 0.05;
+        checks[3][0] = 0.06;
+      }
+      else if (shopifyData[0][41] === 'AB' || shopifyData[0][41] === 'NT' || shopifyData[0][41] === 'NU' || shopifyData[0][41] === 'YT')
+        checks[0][0] = 0.05;
+      else if (shopifyData[0][41] === 'NB' || shopifyData[0][41] === 'NL' || shopifyData[0][41] === 'PE')
+        checks[4][0] = 0.15;
+      else if (shopifyData[0][41] === 'NS')
+        checks[5][0] = 0.14;
       else if (shopifyData[0][41] === 'ON')
-        checks[3][0] = 0.13;
-      // else if (shopifyData[0][41] === 'SK')
-      //   checks[4][0] = 0.11;
+        checks[6][0] = 0.13;
     }
   }
 
-  /* Order Totals have been off by 1 cent. It was determined that there seemed to be a rounding problem.
-   * The "twoDecimals" function was added in multiple instances below to hopefully eliminate this problem.
-   */
-  
-  const tax = 1 + twoDecimals(checks.reduce((acc, val) => acc + val[0] , 0));
-  const updatedSubTotal = twoDecimals(shopifyData.reduce((acc, val) => acc + twoDecimals(val[16]*val[18]), 0));
-  const freightCost = twoDecimals(shopifyData[0][11]) - twoDecimals(shopifyData[0][51]) - twoDecimals(updatedSubTotal*tax); // Total - outstanding balance - subtotal*tax
+  checkboxRange.setValues(checks)
+
   const shippingMethod = invoice.getRange(14, 2);
-  const shippingCost = invoice.getRange(4, col);
   const formattedDate = Utilities.formatDate(new Date(), spreadsheet.getSpreadsheetTimeZone(), "dd MMMM yyyy");
   const shipDate = 'Ship Date: ' + formattedDate;
   const boldTextStyle = SpreadsheetApp.newTextStyle().setBold(true).setFontSize(12).build();
@@ -2592,7 +2603,6 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
 
   invoice.getRange(14, 4).setValue('')
   invoice.getRange(14, 7).setRichTextValue(shipDate_RichText)
-  shippingCost.setValue(freightCost)
 
   // Check the shipping method and make the relevant changes
   switch (shopifyData[0][14])
