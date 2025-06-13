@@ -38,9 +38,9 @@ function installedOnEdit(e)
     * they are false otherwise. Therefore, any value greater than or equal to 0 represents a checked box. Leave the box that was immediately 
     * clicked checked, which is identified by the row that was edited minus 3 (because the top of the range starts at row 3).
     */
-    if (sheetName === 'Calculator'  && col == 4 && row > 2 && row < 9)
-      checkboxRange.setValues(checkboxRange.getValues().map((check, index) => (check[0] >= 0 && index != row - 3) ? [false] : check))
-    else if (sheetName === 'Status Page')
+    // if (sheetName === 'Calculator'  && col == 4 && row > 2 && row < 9)
+    //   checkboxRange.setNumberFormat('#').setValues(checkboxRange.getValues().map((check, index) => (check[0] >= 0 && index != row - 3) ? [false] : check))
+    if (sheetName === 'Status Page')
     {
       if (col == 2 && row > 1)
       {
@@ -115,7 +115,7 @@ function installedOnEdit(e)
           checkboxRange.uncheck()
         else 
         {
-          checkboxRange.setValues(checks)
+          checkboxRange.setNumberFormat('#').setValues(checks)
           sheet.getRange(5, 9).setFormula('=Items_Tax+Shipping_Tax')
         }
 
@@ -1280,7 +1280,7 @@ function setInvoiceValues(orderNumber_Status, spreadsheet)
       }
     }
 
-    checkboxRange.setValues(checks)
+    checkboxRange.setNumberFormat('#').setValues(checks)
     spreadsheet.getRangeByName('Hidden_Checkbox').uncheck(); // This is the checkbox on the Packing Slip that adds 10%
 
     spreadsheet.getSheetByName('Invoice').activate()
@@ -2214,7 +2214,7 @@ function setPickUpLocation(street, cityProvPostCode)
   values[6] = 'CA' // Country
   checks[0][0] = 0.12;
 
-  checkboxRange.setValues(checks)
+  checkboxRange.setNumberFormat('#').setValues(checks)
   range.setValues([values])
 }
 
@@ -2592,7 +2592,7 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
     }
   }
 
-  checkboxRange.setValues(checks)
+  checkboxRange.setNumberFormat('#').setValues(checks)
 
   const shippingMethod = invoice.getRange(14, 2);
   const formattedDate = Utilities.formatDate(new Date(), spreadsheet.getSpreadsheetTimeZone(), "dd MMMM yyyy");
@@ -2778,7 +2778,7 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
     invoice.getRange(3, col).setFormula('=SUM(Item_Totals_Page_1)')
   }
 
-  checkboxRange.setValues(checks)
+  checkboxRange.setNumberFormat('#').setValues(checks)
 }
 
 /**
