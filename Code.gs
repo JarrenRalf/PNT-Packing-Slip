@@ -116,7 +116,7 @@ function installedOnEdit(e)
         else 
         {
           checkboxRange.setNumberFormat('#').setValues(checks)
-          sheet.getRange(5, 9).setFormula('=Items_Tax+Shipping_Tax')
+          sheet.getRange(5, 9).setFormula('=Items_Tax_GST+Items_Tax_PSTorHST+Shipping_Tax')
         }
 
         spreadsheet.toast('This is the tax toast')
@@ -321,7 +321,7 @@ function applyFormatting(sheets)
           .setFontWeights(new Array(6).fill(['bold', 'normal']))
           .setValues([['Web Order Number', '=Last_Import!A2'], ['Ordered Date', '=INDEX(SPLIT(Last_Import!P2, " "), 1, 1)'], 
             ['Subtotal Amount:', subtotalAmount], ['Shipping Amount:', shippingAmount], 
-            ['Taxes:', '=Items_Tax+Shipping_Tax'], ['Order Total:', '=SUM(Order_Subtotals)']])
+            ['Taxes:', '=Items_Tax_GST+Items_Tax_PSTorHST+Shipping_Tax'], ['Order Total:', '=SUM(Order_Subtotals)']])
         .offset(3, -7, 1, 1) // PNT Address
           .setValue('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
         .offset(4, 0, 5) // The value "SHIP" in the header of the packing slip
@@ -492,7 +492,7 @@ function applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
     .setFontWeights(new Array(6).fill(['bold', 'normal']))
     .setValues([['Web Order Number', '=Last_Import!A2'], ['Ordered Date', '=INDEX(SPLIT(Last_Import!P2, " "), 1, 1)'], 
       ['Subtotal Amount:', subtotalAmount], ['Shipping Amount:', shippingAmount], 
-      ['Taxes:', '=Items_Tax+Shipping_Tax'], ['Order Total:', '=SUM(Order_Subtotals)']])
+      ['Taxes:', '=Items_Tax_GST+Items_Tax_PSTorHST+Shipping_Tax'], ['Order Total:', '=SUM(Order_Subtotals)']])
   .offset(3, -7, 1, 1) // PNT Address
     .setValue('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
   .offset(4, 0, 5) // The value "SHIP" in the header of the packing slip
