@@ -207,9 +207,10 @@ function onOpen()
     .addSeparator()   
     .addItem('Apply Formatting', 'applyFormatting')
     .addSubMenu(ui.createMenu('Convert Pricing')
-    .addItem('Guide', 'convertPricing_Guide')
-    .addItem('Lodge', 'convertPricing_Lodge')
-    .addItem('Wholesale', 'convertPricing_Wholesale'))
+      .addItem('Guide', 'convertPricing_Guide')
+      .addItem('Guide (CFV)', 'convertPricing_CFV')
+      .addItem('Lodge', 'convertPricing_Lodge')
+      .addItem('Wholesale', 'convertPricing_Wholesale'))
     .addItem('Clear Export Page', 'clearExportPage')
 
 //    .addItem('Hold For Pick Up', 'invoice_HFPU')
@@ -362,7 +363,7 @@ function applyFormatting(sheets)
             .setHorizontalAlignments(new Array(numItemsOnPageOne + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
             .setBorder(true, true, true, true, true, false)
         .offset(numItemsOnPageOne + 2, 0, 1, 5) // The hyperlinked email at the bottom of the page
-          .merge().setRichTextValue(emailHyperLink)
+          .merge().setRichTextValue(emailHyperLink);
         
       for (var n = 0; n < numPages - 1; n++)
       {
@@ -393,22 +394,22 @@ function applyFormatting(sheets)
             .setHorizontalAlignments(new Array(numItemsPerPage + 1).fill(['center', 'center', 'left', 'left', 'left', 'left', 'left', 'right', 'right']))
             .setBorder(true, true, true, true, true, false)
           .offset(numItemsPerPage + 2, 0, 1, 5) // Email hyperlink on each page
-            .merge().setRichTextValue(emailHyperLink)
+            .merge().setRichTextValue(emailHyperLink);
       }
 
       if (numPages > 1)
         sheets[s].getRange(numRows, col).setFontColor('black').setFontFamily('Arial').setFontStyle('normal').setBackground('white')
               .setFontSize(10).setVerticalAlignment('middle').setNumberFormat('@').setHorizontalAlignment('right').setFontWeight('normal')
-              .setValue('Page ' + numPages + ' of ' + numPages)
+              .setValue('Page ' + numPages + ' of ' + numPages);
       else
-        sheets[s].getRange(numRows, col).setValue('')
+        sheets[s].getRange(numRows, col).setValue('');
     }
     else if (sheetName === 'Calculator')
     {
       range = sheets[s].setColumnWidth(1, 15).setColumnWidth(2, 245).setColumnWidth(3, 100).setColumnWidth(4, 35).setColumnWidth(5, 268).setColumnWidth(6, 15)
         .setRowHeightsForced(1, 1, 15).setRowHeights(2, 10, 25).setRowHeight(12, 15).getRange(1, 1, sheets[s].getMaxRows(), sheets[s].getMaxColumns());
-      lastRow = range.getLastRow()
-      lastCol = range.getLastColumn()
+      lastRow = range.getLastRow();
+      lastCol = range.getLastColumn();
 
       range.setBackground('#a4c2f4').setFontFamily('Arial').setVerticalAlignment('middle')
         .setFontColor([['black', 'black', 'black', '#a4c2f4', 'black', 'black'], ['black', 'black', 'black', 'black', 'black', 'black'], 
@@ -416,36 +417,36 @@ function applyFormatting(sheets)
           new Array(lastRow - 4).fill(new Array(lastCol).fill('black'))])
         .setFontSizes([...new Array(lastRow - 2).fill([12, 12, 12, 12, 10, 12]), [12, 12, 12, 12, 9, 12], [12, 12, 12, 12, 10, 12]])
         .setHorizontalAlignments(new Array(lastRow).fill(['left', 'left', 'center', 'center', 'right', 'left']))
-        .setBorder(true, true, true, true, false, false, 'black', SpreadsheetApp.BorderStyle.SOLID_THICK)
+        .setBorder(true, true, true, true, false, false, 'black', SpreadsheetApp.BorderStyle.SOLID_THICK);
 
-      sheets[s].getRangeList(['B2:C3', 'B5:C7', 'B9:C9', 'B11:C11']).setBackground('white').setBorder(true, true, true, true, false, false, 'black', SpreadsheetApp.BorderStyle.SOLID_THICK)
-      sheets[s].getRange('D2:D11').uncheck()
+      sheets[s].getRangeList(['B2:C3', 'B5:C7', 'B9:C9', 'B11:C11']).setBackground('white').setBorder(true, true, true, true, false, false, 'black', SpreadsheetApp.BorderStyle.SOLID_THICK);
+      sheets[s].getRange('D2:D11').uncheck();
     }
     else if (sheetName === 'Export')
     {
       range = sheets[s].setColumnWidth(1, 17).setColumnWidth(2, 126).setColumnWidth(3, 70).setColumnWidths(4, 3, 100)
         .setColumnWidth(7, 75).setColumnWidths(8, 2, 25).setColumnWidth(10, 100).getDataRange();
-      lastRow = range.getLastRow()
-      lastCol = range.getLastColumn()
+      lastRow = range.getLastRow();
+      lastCol = range.getLastColumn();
 
-      range.setFontColor('black').setFontFamily('Arial').setFontSize(10).setNumberFormat('@').setVerticalAlignment('middle')
+      range.setFontColor('black').setFontFamily('Arial').setFontSize(10).setNumberFormat('@').setVerticalAlignment('middle');
     }
     else if (sheetName === 'Last_Import' || sheetName === 'All_Active_Orders' || sheetName === 'All_Completed_Orders')
     {
       range = sheets[s].hideSheet().getDataRange();
-      lastRow = range.getLastRow()
-      lastCol = range.getLastColumn()
-      sheets[s].setFrozenRows(1)
-      sheets[s].setFrozenColumns(1)
+      lastRow = range.getLastRow();
+      lastCol = range.getLastColumn();
+      sheets[s].setFrozenRows(1);
+      sheets[s].setFrozenColumns(1);
 
       range.setBackgrounds([new Array(lastCol).fill('#c9daf8'), ...new Array(lastRow - 1).fill(new Array(lastCol).fill('white'))]).setFontColor('black')
-        .setFontFamily('Arial').setFontSize(10).setNumberFormat('@').setVerticalAlignment('middle')
+        .setFontFamily('Arial').setFontSize(10).setNumberFormat('@').setVerticalAlignment('middle');
     }
     else if (sheetName === 'Status' || sheetName === 'Completed Orders')
       sheets[s].hideSheet().getDataRange().setBackground('white').setFontColor('black').setFontFamily('Arial').setFontSize(10)
-        .setHorizontalAlignment('left').setNumberFormat('@').setVerticalAlignment('middle')
+        .setHorizontalAlignment('left').setNumberFormat('@').setVerticalAlignment('middle');
     else if (sheetName === 'Completed Orders')
-      sheets[s].hideSheet()
+      sheets[s].hideSheet();
   }
 
   spreadsheet.toast('All sheets were formatted.')
@@ -611,10 +612,11 @@ function clearExportPage()
 /**
  * This function convert the SKUs on the invoice to from base price to Wholesale price.
  * 
- * @param {Number} PRICE : This is the index value that selects for the appropriate discount structure.
+ * @param {Number}  PRICE : This is the index value that selects for the appropriate discount structure.
+ * @param {Boolean} isCFV : Wheather the customer is a commercial fishing vessel or not.
  * @author Jarren Ralf
  */
-function convertPricing(PRICE)
+function convertPricing(PRICE, isCFV)
 {
   const spreadsheet = SpreadsheetApp.getActive();
   const invoiceSheet = spreadsheet.getActiveSheet();
@@ -644,7 +646,7 @@ function convertPricing(PRICE)
           if (Number(newPrice) < item[7])
           {
             if (itemPricing[PRICE] > 0)
-              item[2] = item[2] + ' - (' + (((PRICE !== 4) ? ((PRICE !== 3) ? 'Guide' : 'Lodge' ) : 'Wholesale')) + ': '+ itemPricing[PRICE] + '% off)';
+              item[2] = item[2] + ' - (' + (((PRICE !== 4) ? ((PRICE !== 3) ? ((isCFV) ? 'CFV' : 'Guide') : 'Lodge' ) : 'Wholesale')) + ': '+ itemPricing[PRICE] + '% off)';
 
             item[7] = newPrice;
             item[8] = (Number(newPrice)*Number(item[0].split(' x').shift())).toFixed(2);
@@ -670,6 +672,18 @@ function convertPricing(PRICE)
 }
 
 /**
+ * This function convert the SKUs on the invoice to from base price to Guide price, but this version changes the tag on the order 
+ * to say CFV instead of Guide.
+ * 
+ * @author Jarren Ralf
+ */
+function convertPricing_CFV()
+{
+  const GUIDE_PRICE = 2;
+  convertPricing(GUIDE_PRICE, true);
+}
+
+/**
  * This function convert the SKUs on the invoice to from base price to Guide price.
  * 
  * @author Jarren Ralf
@@ -677,7 +691,7 @@ function convertPricing(PRICE)
 function convertPricing_Guide()
 {
   const GUIDE_PRICE = 2;
-  convertPricing(GUIDE_PRICE);
+  convertPricing(GUIDE_PRICE, false);
 }
 
 /**
@@ -688,7 +702,7 @@ function convertPricing_Guide()
 function convertPricing_Lodge()
 {
   const LODGE_PRICE = 3;
-  convertPricing(LODGE_PRICE);
+  convertPricing(LODGE_PRICE, false);
 }
 
 /**
@@ -699,7 +713,7 @@ function convertPricing_Lodge()
 function convertPricing_Wholesale()
 {
   const WHOLESALE_PRICE = 4;
-  convertPricing(WHOLESALE_PRICE);
+  convertPricing(WHOLESALE_PRICE, false);
 }
 
 /**
@@ -1250,33 +1264,45 @@ function setInvoiceValues(orderNumber_Status, spreadsheet)
       return row
     })
 
-    const checkboxRange = spreadsheet.getSheetByName('Calculator').getRange(2, 3, 2, 1).setFormulas([['=SubtotalAmount'], ['=ShippingAmount']]).offset(0, 1, 9, 1).uncheck().offset(1, 0, 7, 1)
+    const checkboxRange = spreadsheet.getSheetByName('Calculator').getRange(2, 3, 2, 1).setFormulas([['=SubtotalAmount'], ['=ShippingAmount']]).offset(0, 0, 10, 1).uncheck().offset(0, 0, 8, 1)
     const checks = checkboxRange.getValues()
 
     // Check the shipping country and province, then set the taxes accordingly by checking the appropriate box
     if (isBlank(shippingLocation[1])) // Blank means the item is a pick up in BC, therefore charge 12%
     {
-      checks[0][0] = 0.12;
+      
       spreadsheet.getRangeByName('ShippingAmount').setValue(0);
     }
     else
     {
       if (shippingLocation[3] !== 'CA')
-        checks[5][0] = 0;
+        checks[7][0] = 0;
       else
       {
-        if (shippingLocation[1] === 'BC') 
-          checks[0][0] = 0.12;
-        else if (shippingLocation[1] === 'AB' || shippingLocation[1] === 'NT' || shippingLocation[1] === 'NU' || 
-                shippingLocation[1] === 'YT' || shippingLocation[1] === 'QC' || shippingLocation[1] === 'MB' ||
-                shippingLocation[1] === 'SK')
-          checks[1][0] = 0.05;
-        else if (shippingLocation[1] === 'NS' || shippingLocation[1] === 'NB' || shippingLocation[1] === 'NL' || shippingLocation[1] === 'PE')
-          checks[2][0] = 0.15;
+        if (shippingLocation[1] === 'BC' || shippingLocation[1] === 'MB')
+        {
+          checks[0][0] = 0.05;
+          checks[1][0] = 0.07;
+        }
+        else if (shippingLocation[1] === 'AB' || shippingLocation[1] === 'NT' || 
+                 shippingLocation[1] === 'NU' || shippingLocation[1] === 'YT')
+          checks[0][0] = 0.05;
+        else if (shippingLocation[1] === 'QC')
+        {
+          checks[0][0] = 0.05;
+          checks[2][0] = 0.09975;
+        }
+        else if (shippingLocation[1] === 'SK')
+        {
+          checks[0][0] = 0.05;
+          checks[3][0] = 0.06;
+        }
+        else if (shippingLocation[1] === 'NB' || shippingLocation[1] === 'NL' || shippingLocation[1] === 'PE')
+          checks[4][0] = 0.15;
+        else if (shippingLocation[1] === 'NS')
+          checks[5][0] = 0.14;
         else if (shippingLocation[1] === 'ON')
-          checks[3][0] = 0.13;
-        // else if (shippingLocation[1] === 'SK')
-        //   checks[4][0] = 0.11;
+          checks[6][0] = 0.13;
       }
     }
 
