@@ -406,7 +406,7 @@ function applyFormatting(sheets)
     }
     else if (sheetName === 'Calculator')
     {
-      range = sheets[s].setColumnWidth(1, 15).setColumnWidth(2, 245).setColumnWidth(3, 100).setColumnWidth(4, 35).setColumnWidth(5, 268).setColumnWidth(6, 15)
+      range = sheets[s].setColumnWidth(1, 15).setColumnWidth(2, 245).setColumnWidth(3, 80).setColumnWidth(4, 35).setColumnWidth(5, 268).setColumnWidth(6, 15)
         .setRowHeightsForced(1, 1, 15).setRowHeights(2, 10, 25).setRowHeight(12, 15).getRange(1, 1, sheets[s].getMaxRows(), sheets[s].getMaxColumns());
       lastRow = range.getLastRow();
       lastCol = range.getLastColumn();
@@ -1264,7 +1264,7 @@ function setInvoiceValues(orderNumber_Status, spreadsheet)
       return row
     })
 
-    const checkboxRange = spreadsheet.getSheetByName('Calculator').getRange(2, 3, 2, 1).setFormulas([['=SubtotalAmount'], ['=ShippingAmount']]).offset(0, 0, 10, 1).uncheck().offset(0, 0, 8, 1)
+    const checkboxRange = spreadsheet.getSheetByName('Calculator').getRange(2, 3, 2, 1).setFormulas([['=SubtotalAmount'], ['=ShippingAmount']]).offset(0, 1, 10, 1).uncheck().offset(0, 0, 8, 1)
     const checks = checkboxRange.getValues()
 
     // Check the shipping country and province, then set the taxes accordingly by checking the appropriate box
@@ -2642,7 +2642,7 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
       shopifyData[0][40] = 'V7E 3A5';
       shopifyData[0][43] = shopifyData[0][33]; // Phone Number;
       shippingMethod.setValue('Pick Up')
-      calculator.getRange('D9').check() // Check the box on calculator for pick up
+      calculator.getRange('D10').check() // Check the box on calculator for pick up
       shippingCost.setValue(0)
       break;
     case 'Parksville':
@@ -2654,7 +2654,7 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
       shopifyData[0][40] = 'V9P 2C9';
       shopifyData[0][43] = shopifyData[0][33]; // Phone Number;
       shippingMethod.setValue('Pick Up')
-      calculator.getRange('D9').check() // Check the box on calculator for pick up
+      calculator.getRange('D10').check() // Check the box on calculator for pick up
       shippingCost.setValue(0)
       break;
     case 'Prince Rupert':
@@ -2666,12 +2666,12 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
       shopifyData[0][40] = 'V8J 4K8';
       shopifyData[0][43] = shopifyData[0][33]; // Phone Number;
       shippingMethod.setValue('Pick Up')
-      calculator.getRange('D9').check() // Check the box on calculator for pick up
+      calculator.getRange('D10').check() // Check the box on calculator for pick up
       shippingCost.setValue(0)
       break;
     case 'Post Lettermail':
     case 'CDA Post Lettermail':
-      calculator.getRange('D10').check() // Check the box on calculator for lettermail
+      calculator.getRange('D11').check() // Check the box on calculator for lettermail
       shippingMethod.setValue('Post Lettermail')
       break;
     case 'Post Expedited Parcel':
