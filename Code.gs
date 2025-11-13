@@ -208,7 +208,7 @@ function onOpen()
     .addItem('Apply Formatting', 'applyFormatting')
     .addSubMenu(ui.createMenu('Convert Pricing')
       .addItem('Guide', 'convertPricing_Guide')
-      .addItem('Guide (CFV)', 'convertPricing_CFV')
+      .addItem('Commercial', 'convertPricing_CFV')
       .addItem('Lodge', 'convertPricing_Lodge')
       .addItem('Wholesale', 'convertPricing_Wholesale'))
     .addItem('Clear Export Page', 'clearExportPage')
@@ -726,6 +726,7 @@ function createTriggers()
   const ss = SpreadsheetApp.getActive()
   ScriptApp.newTrigger('onChange').forSpreadsheet(ss).onChange().create() // This is an installable onChange trigger
   ScriptApp.newTrigger('installedOnEdit').forSpreadsheet(ss).onEdit().create() // This is an installable onChange trigger
+  ScriptApp.newTrigger('deleteLinesOnAllActiveOrders').timeBased().everyWeeks(1).onWeekDay(ScriptApp.WeekDay.SUNDAY);
   ScriptApp.newTrigger('removeOldOrdersFrom_All_Completed_OrdersArchive').timeBased().everyWeeks(2).onWeekDay(ScriptApp.WeekDay.SUNDAY).create()
   ScriptApp.newTrigger("resetCurrentYearFreightCounterAnnually").timeBased().onMonthDay(1).atHour(2).create();
 }
@@ -753,6 +754,27 @@ function deleteFiles(id1, id2)
 {
   DriveApp.getFileById(id1).setTrashed(true)
   DriveApp.getFileById(id2).setTrashed(true)
+}
+
+/**
+ * This function deletes orders off of the All Active Orders sheet if they are not on the status page.
+ * 
+ * @author Jarren
+ */
+function deleteLinesOnAllActiveOrders()
+{
+  const spreadsheet = SpreadsheetApp.getActive()
+  const statusPage = spreadsheet.getSheetByName('Status Page')
+  const activeOrderNumbers = statusPage.getSheetValues(3, 1, statusPage.getLastRow() - 2, 1).flat();
+  const allActiveOrdersSheet = spreadsheet.getSheetByName('Copy of All_Active_Orders');
+  const numCols = allActiveOrdersSheet.getLastColumn();
+  const allOrders = allActiveOrdersSheet.getSheetValues(1, 1, allActiveOrdersSheet.getLastRow(), numCols)
+  const header = allOrders.shift();
+  const activeOrders = allOrders.filter(ord => activeOrderNumbers.includes(ord[0]))
+  const numRows = activeOrders.unshift(header)
+
+  if (allOrders.length + 1 > numRows)
+    allActiveOrdersSheet.clearContents().getRange(1, 1, numRows, numCols).setNumberFormat('@').setValues(activeOrders).getSheet().deleteRows(numRows + 1, allOrders.length - numRows + 1)
 }
 
 /**
