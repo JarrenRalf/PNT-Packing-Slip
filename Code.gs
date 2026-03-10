@@ -70,12 +70,27 @@ function installedOnEdit(e)
     {
       const numRowsPerPage = 49;
 
-      if (row == 4 && col == 5) // Hidden checkbox that adds (or removes) 10% to the freight cost
+      if (row == 4) // Hidden checkbox that adds (or removes) 10% to the freight cost
       {
-        const rng = spreadsheet.getRangeByName('ShippingAmount');
-        var shippingAmount = rng.getValue()
-        shippingAmount = (range.isChecked()) ? twoDecimals(shippingAmount*1.1) : twoDecimals(shippingAmount/1.1)
-        rng.setValue(shippingAmount)
+        if (col == 5)
+        {
+          const rng = spreadsheet.getRangeByName('ShippingAmount');
+          var shippingAmount = rng.getValue()
+          shippingAmount = (range.isChecked()) ? twoDecimals(shippingAmount*1.1) : twoDecimals(shippingAmount/1.1)
+          rng.setValue(shippingAmount)
+        }
+        else if (col == 9)
+        {
+          const allActiveOrdersSheet = spreadsheet.getSheetByName('All_Active_Orders')
+          const row = allActiveOrdersSheet.getSheetValues(2, 1, allActiveOrdersSheet.getLastRow() - 1, 1).findIndex(ordNum => ordNum[0] === range.offset(-3, 0).getValue()) + 2;
+          const shippingCost = e.value;
+
+          if (row !== 1 && shippingCost != undefined)
+          {
+            allActiveOrdersSheet.getRange(row, allActiveOrdersSheet.getSheetValues(1, 1, 1, 20).flat().indexOf('Shipping') + 1).setValue(shippingCost);
+            spreadsheet.toast('on All_Active_Orders', 'Shipping Amount Updated ☑')
+          } 
+        }
       }
       else if (row == 5 && col == 5) // Hidden checkbox that removes taxes from the order
       {
@@ -766,7 +781,7 @@ function deleteLinesOnAllActiveOrders()
   const spreadsheet = SpreadsheetApp.getActive()
   const statusPage = spreadsheet.getSheetByName('Status Page')
   const activeOrderNumbers = statusPage.getSheetValues(3, 1, statusPage.getLastRow() - 2, 1).flat();
-  const allActiveOrdersSheet = spreadsheet.getSheetByName('Copy of All_Active_Orders');
+  const allActiveOrdersSheet = spreadsheet.getSheetByName('All_Active_Orders');
   const numCols = allActiveOrdersSheet.getLastColumn();
   const allOrders = allActiveOrdersSheet.getSheetValues(1, 1, allActiveOrdersSheet.getLastRow(), numCols)
   const header = allOrders.shift();
@@ -1704,15 +1719,17 @@ function testShit()
 function invoice_Complete()
 {
   const spreadsheet = SpreadsheetApp.getActive();
-  const sheet = spreadsheet.getActiveSheet();
 
-  if (sheet.getSheetName() !== 'Invoice' && sheet.getSheetName() !== 'Packing Slip')
-  {
-    spreadsheet.toast('You must be on the Invoice sheet to run this function. Please try again.')
-    spreadsheet.getSheetByName('Invoice').activate();
-  }
-  else
-  {
+  // const sheet = spreadsheet.getActiveSheet();
+
+  // if (sheet.getSheetName() !== 'Invoice' && sheet.getSheetName() !== 'Packing Slip')
+  // {
+  //   spreadsheet.toast('You must be on the Invoice sheet to run this function. Please try again.')
+  //   spreadsheet.getSheetByName('Invoice').activate();
+  // }
+  // else
+  // {
+    const sheet = spreadsheet.getSheetByName('Invoice').activate();
     const currentOrder = sheet.getSheetValues(1, 9, 1, 1)[0][0]
 
     const statusPage = spreadsheet.getSheetByName('Status Page').activate();
@@ -1796,7 +1813,7 @@ function invoice_Complete()
     exportData(values_ExportPage, spreadsheet.getSheetByName('Export'), spreadsheet, shippingAmount, itemValues_Invoice);
     applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
     //savePDFsInDrive(sheet, spreadsheet)
-  }
+  // }
 }
 
 /**
@@ -1983,62 +2000,62 @@ function reformatInvoice(e)
       const values = sheet.getDataRange().getValues();
       const items = values.filter(val => val[0].toString().substr(-1) === 'x')
 
-      if (lastRow <= numRowsPerPage) // Only 1 page
-      {
-        sheet.insertRowsAfter(numRowsPerPage - numItemsOnPageOne + items.length - 1, numRowsPerPage - lastRow + 1)
-          .getRange(numRowsPerPage - numItemsOnPageOne + items.length, 3, numItemsOnPageOne - items.length, 5).mergeAcross()
-          .offset(0, -2, numItemsOnPageOne - items.length, lastCol)
-          .setBorder(false, true, null, true, true, false)
-      }
-      else // Multipage
-      {
-        const firstRow_PageOne = 16
-        const firstRow_PageTwo = 58
-        const numItemsPerPage = 39;
-        const numPages = sheet.getRange(lastRow, lastCol).getValue().split(' of ')[1];
-        const numDeletedRows = numPages*numRowsPerPage + 1 - lastRow;
-        const numPagesRequired = Math.ceil((items - numItemsOnPageOne) / numItemsPerPage) + 1
+      // if (lastRow <= numRowsPerPage) // Only 1 page
+      // {
+      //   sheet.insertRowsAfter(numRowsPerPage - numItemsOnPageOne + items.length - 1, numRowsPerPage - lastRow + 1)
+      //     .getRange(numRowsPerPage - numItemsOnPageOne + items.length, 3, numItemsOnPageOne - items.length, 5).mergeAcross()
+      //     .offset(0, -2, numItemsOnPageOne - items.length, lastCol)
+      //     .setBorder(false, true, null, true, true, false)
+      // }
+      // else // Multipage
+      // {
+      //   const firstRow_PageOne = 16
+      //   const firstRow_PageTwo = 58
+      //   const numItemsPerPage = 39;
+      //   const numPages = sheet.getRange(lastRow, lastCol).getValue().split(' of ')[1];
+      //   const numDeletedRows = numPages*numRowsPerPage + 1 - lastRow;
+      //   const numPagesRequired = Math.ceil((items - numItemsOnPageOne) / numItemsPerPage) + 1
 
-        if (numPagesRequired < numPages) // We must reduce the number of pages
-        {
+      //   if (numPagesRequired < numPages) // We must reduce the number of pages
+      //   {
 
-        }
-        else // The number of pages stay the same
-        {
-          for (var row = 0; row < numItemsOnPageOne; row++)
-          {
-            if (isBlank(values[firstRow_PageOne + row][0])) 
-            {
-              sheet.insertRowsBefore(firstRow_PageOne + row, numItemsOnPageOne - row)
-                .getRange(firstRow_PageOne + row, 3, numItemsOnPageOne - row, 5).mergeAcross()
-                .offset(0, -2, numItemsOnPageOne - row + 1, lastCol)
-                .setValues(items.slice(row - 1, numItemsOnPageOne))
-              break;
-            }
-          }
+      //   }
+      //   else // The number of pages stay the same
+      //   {
+      //     for (var row = 0; row < numItemsOnPageOne; row++)
+      //     {
+      //       if (isBlank(values[firstRow_PageOne + row][0])) 
+      //       {
+      //         sheet.insertRowsBefore(firstRow_PageOne + row, numItemsOnPageOne - row)
+      //           .getRange(firstRow_PageOne + row, 3, numItemsOnPageOne - row, 5).mergeAcross()
+      //           .offset(0, -2, numItemsOnPageOne - row + 1, lastCol)
+      //           .setValues(items.slice(row - 1, numItemsOnPageOne))
+      //         break;
+      //       }
+      //     }
 
-          if (numDeletedRows > numItemsOnPageOne - row)
-          {
-            // for (var page = 0; page < numPages - 1; page++)
-            // {
-            //   for (var row = firstRow_PageTwo + numRowsPerPage*page; row < numItemsPerPage; row++)
-            //   {
-            //     if (isBlank(values[firstRow + row][0]))
-            //     {
-            //       sheet.insertRowsBefore(firstRow + row, numItemsOnPageOne - row)
-            //         .getRange(firstRow + row, 3, numItemsOnPageOne - row, 5)
-            //         .mergeAcross()
-            //         .offset(0, -2, numItemsOnPageOne - row + 1, lastCol)
-            //         .setValues(items.slice(row - 1, numItemsOnPageOne))
-            //       break;
-            //     }
-            //   }
-            // }
-          }
-          else
-            Logger.log('Restored all of the rows!')
-        }
-      }
+      //     if (numDeletedRows > numItemsOnPageOne - row)
+      //     {
+      //       // for (var page = 0; page < numPages - 1; page++)
+      //       // {
+      //       //   for (var row = firstRow_PageTwo + numRowsPerPage*page; row < numItemsPerPage; row++)
+      //       //   {
+      //       //     if (isBlank(values[firstRow + row][0]))
+      //       //     {
+      //       //       sheet.insertRowsBefore(firstRow + row, numItemsOnPageOne - row)
+      //       //         .getRange(firstRow + row, 3, numItemsOnPageOne - row, 5)
+      //       //         .mergeAcross()
+      //       //         .offset(0, -2, numItemsOnPageOne - row + 1, lastCol)
+      //       //         .setValues(items.slice(row - 1, numItemsOnPageOne))
+      //       //       break;
+      //       //     }
+      //       //   }
+      //       // }
+      //     }
+      //     else
+      //       Logger.log('Restored all of the rows!')
+      //   }
+      // }
     }
   }
   catch (err)
