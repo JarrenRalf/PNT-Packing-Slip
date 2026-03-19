@@ -1939,7 +1939,7 @@ function processImportedData(e)
     var sheets = spreadsheet.getSheets();
     var info, numRows = 0, numCols = 1, maxRow = 2, maxCol = 3;
 
-    for (var sheet = 0; sheet < sheets.length; sheet++) // Loop through all of the sheets in this spreadsheet and find the new one
+    for (var sheet = sheets.length - 1; sheet > -1; sheet--) // Loop through all of the sheets in this spreadsheet and find the new one
     {
       info = [
         sheets[sheet].getLastRow(),
