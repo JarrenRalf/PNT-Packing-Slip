@@ -1999,14 +1999,15 @@ function reformatInvoice(e)
       const lastCol = 9;
       const values = sheet.getDataRange().getValues();
       const items = values.filter(val => val[0].toString().substr(-1) === 'x')
+      const numBlankRows = numItemsOnPageOne - items.length;
 
-      // if (lastRow <= numRowsPerPage) // Only 1 page
-      // {
-      //   sheet.insertRowsAfter(numRowsPerPage - numItemsOnPageOne + items.length - 1, numRowsPerPage - lastRow + 1)
-      //     .getRange(numRowsPerPage - numItemsOnPageOne + items.length, 3, numItemsOnPageOne - items.length, 5).mergeAcross()
-      //     .offset(0, -2, numItemsOnPageOne - items.length, lastCol)
-      //     .setBorder(false, true, null, true, true, false)
-      // }
+      if (lastRow <= numRowsPerPage) // Only 1 page
+      {
+        sheet.insertRowsAfter(numRowsPerPage - numItemsOnPageOne + items.length - 1, numRowsPerPage - lastRow + 1)
+          .getRange(numRowsPerPage - numItemsOnPageOne + items.length, 3, numBlankRows, 5).mergeAcross()
+          .offset(0, -2, numBlankRows, lastCol).setBorder(false, true, null, true, true, false)
+          .offset(0,  0, numBlankRows, lastCol).setBorder( null, null, true, null, null,  null);
+      }
       // else // Multipage
       // {
       //   const firstRow_PageOne = 16
