@@ -343,7 +343,7 @@ function applyFormatting(sheets)
           .setFontWeights(new Array(6).fill(['bold', 'normal']))
           .setValues([['Web Order Number', '=Last_Import!A2'], ['Ordered Date', '=INDEX(SPLIT(Last_Import!P2, " "), 1, 1)'], 
             ['Subtotal Amount:', subtotalAmount], ['Shipping Amount:', shippingAmount], 
-            ['Taxes:', '=ItemsTax_GST+ItemsTax_PSTorQSTorHST+ShippingTax'], ['Order Total:', '=SUM(OrderSubtotals)']])
+            ['=IF(E5,"Tariffs & Brokerage:", "Taxes:")', '=ItemsTax_GST+ItemsTax_PSTorQSTorHST+ShippingTax'], ['Order Total:', '=SUM(OrderSubtotals)']])
         .offset(3, -7, 1, 1) // PNT Address
           .setValue('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
         .offset(4, 0, 5) // The value "SHIP" in the header of the packing slip
