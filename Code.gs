@@ -92,49 +92,55 @@ function installedOnEdit(e)
           } 
         }
       }
-      else if (row == 5 && col == 5) // Hidden checkbox that removes taxes from the order
+      else if (row == 5 && col == 5) // */ Hidden checkbox that removes taxes from the order
       {
-        const orderNum = range.offset(-4, 4).getValue()
-        const fullData = spreadsheet.getSheetByName('All_Active_Orders').getDataRange().getValues()
-        fullData.shift()
-        const shopifyData = fullData.find(val => val[0] === orderNum);
-        const checks = checkboxRange.getValues()
+        range.offset(0, 4).setValue(range.isChecked() ? 0 : '=ItemsTax_GST+ItemsTax_PSTorQSTorHST+ShippingTax').activate();
 
-        // Check the shipping country and province, then set the taxes accordingly by checking the appropriate box
-        if (shopifyData[0][41] == null) // Blank means the item is a pick up in BC, therefore charge 12%
-        {
-          checks[0][0] = 0.12;
-          spreadsheet.getRangeByName('ShippingAmount').setValue(0);
-        }
-        else
-        {
-          if (shopifyData[0][42] !== 'CA')
-            checks[5][0] = 0;
-          else
-          {
-            if (shopifyData[0][41] === 'BC') 
-              checks[0][0] = 0.12;
-            else if (shopifyData[0][41] === 'AB' || shopifyData[0][41] === 'NT' || shopifyData[0][41] === 'NU' || 
-                     shopifyData[0][41] === 'YT' || shopifyData[0][41] === 'QC' || shopifyData[0][41] === 'MB')
-              checks[1][0] = 0.05;
-            else if (shopifyData[0][41] === 'NS' || shopifyData[0][41] === 'NB' || shopifyData[0][41] === 'NL' || shopifyData[0][41] === 'PE')
-              checks[2][0] = 0.15;
-            else if (shopifyData[0][41] === 'ON')
-              checks[3][0] = 0.13;
-            else if (shopifyData[0][41] === 'SK')
-              checks[4][0] = 0.11;
-          }
-        }
+        /* Adrian had a function triggered by this cell but he doesn't use it anymore
+         */
+        // Hidden checkbox that removes taxes from the order
 
-        if (range.isChecked())
-          checkboxRange.uncheck()
-        else 
-        {
-          checkboxRange.setNumberFormat('#').setValues(checks)
-          sheet.getRange(5, 9).setFormula('=ItemsTax_GST+ItemsTax_PSTorQSTorHST+ShippingTax')
-        }
+        // const orderNum = range.offset(-4, 4).getValue()
+        // const fullData = spreadsheet.getSheetByName('All_Active_Orders').getDataRange().getValues()
+        // fullData.shift()
+        // const shopifyData = fullData.find(val => val[0] === orderNum);
+        // const checks = checkboxRange.getValues()
 
-        spreadsheet.toast('This is the tax toast')
+        // // Check the shipping country and province, then set the taxes accordingly by checking the appropriate box
+        // if (shopifyData[0][41] == null) // Blank means the item is a pick up in BC, therefore charge 12%
+        // {
+        //   checks[0][0] = 0.12;
+        //   spreadsheet.getRangeByName('ShippingAmount').setValue(0);
+        // }
+        // else
+        // {
+        //   if (shopifyData[0][42] !== 'CA')
+        //     checks[5][0] = 0;
+        //   else
+        //   {
+        //     if (shopifyData[0][41] === 'BC') 
+        //       checks[0][0] = 0.12;
+        //     else if (shopifyData[0][41] === 'AB' || shopifyData[0][41] === 'NT' || shopifyData[0][41] === 'NU' || 
+        //              shopifyData[0][41] === 'YT' || shopifyData[0][41] === 'QC' || shopifyData[0][41] === 'MB')
+        //       checks[1][0] = 0.05;
+        //     else if (shopifyData[0][41] === 'NS' || shopifyData[0][41] === 'NB' || shopifyData[0][41] === 'NL' || shopifyData[0][41] === 'PE')
+        //       checks[2][0] = 0.15;
+        //     else if (shopifyData[0][41] === 'ON')
+        //       checks[3][0] = 0.13;
+        //     else if (shopifyData[0][41] === 'SK')
+        //       checks[4][0] = 0.11;
+        //   }
+        // }
+
+        // if (range.isChecked())
+        //   checkboxRange.uncheck()
+        // else 
+        // {
+        //   checkboxRange.setNumberFormat('#').setValues(checks)
+        //   sheet.getRange(5, 9).setFormula('=ItemsTax_GST+ItemsTax_PSTorQSTorHST+ShippingTax')
+        // }
+
+        // spreadsheet.toast('This is the tax toast')
       }
       else if (row == 14) 
       {
@@ -1049,6 +1055,10 @@ function exportData(importData, exportSheet, spreadsheet, shippingAmount, itemVa
 
     exportData.push(getFreightLine(shippingCosts[numOrders - 1], country)); // Add a FREIGHT line to the end of the export data
   }
+
+  // If tariffs go away, comment out this line
+  if (spreadsheet.getRange(5, 5).isChecked())
+    exportData.push(getTariffAndBrokerageLine(spreadsheet.getSheetValues(5, 9, 1, 1)[0][0], country)); // Add a FREIGHT line to the end of the export data
   
   if (exportData.length !== 0)
     exportSheet.getRange(exportSheet.getLastRow() + 1, 1, exportData.length, numCols).setBackgrounds(backgrounds).setValues(exportData);
@@ -1403,6 +1413,20 @@ function getShippingLine(data)
     (isNotBlank(data[41])) ? data[41].toUpperCase() : data[31].toUpperCase(),         // Province / State
     (isNotBlank(data[42])) ? data[42].toUpperCase() : data[32].toUpperCase(),         // Country
     phoneNumber];                                                                     // Phone Number
+}
+
+/**
+ * This function returns the Tariff And Brokerage line for the export data. The cost of Tariff And Brokerage is rounded to 2 decimals.
+ * If the country is USA the tax code is set to 4, otherwise it is set to 0. 
+ * 
+ * @param {Object[]} cost  : The cost of shipping
+ * @param {String} country : The abbreviation for the country
+ * @return {Object[]} The freight line for the export data
+ * @author Jarren Ralf
+ */
+function getTariffAndBrokerageLine(cost, country)
+{
+  return ['D', 'FREIGHT', twoDecimals(cost), 1, 1, (country !== 'CA') ? 4 : 0, ...new Array(4).fill(null)];
 }
 
 /**
