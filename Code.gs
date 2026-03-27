@@ -400,7 +400,7 @@ function applyFormatting(sheets)
             .setHorizontalAlignments([['left', 'right'], ['right', 'center'], ['right', 'center'], ['right', 'right'], ['right', 'right'], ['right', 'right'], ['right', 'right']])
             .setFontWeights(new Array(7).fill(['bold', 'normal']))
             .setValues([['', 'Page ' + (n + 1) + ' of ' + numPages], ['Web Order Number', '=I1'], ['Ordered Date', '=I2'], 
-              ['Subtotal Amount:', '=I3'], ['Shipping Amount:', '=I4'], ['Taxes:', '=I5'], ['Order Total:', '=I6']])
+              ['Subtotal Amount:', '=I3'], ['Shipping Amount:', '=I4'], ['=IF(E5,"Tariffs & Brokerage:", "Taxes:")', '=I5'], ['Order Total:', '=I6']])
           // .offset(1, -7, 1, 1) // PNT Logo on each page
           //   .setValue(pntLogo)
           .offset(3, 0, 1, 1) // PNT Address on each page
@@ -514,7 +514,7 @@ function applyFormattingToInvoice(sheet, spreadsheet, shippingAmount)
     .setFontWeights(new Array(6).fill(['bold', 'normal']))
     .setValues([['Web Order Number', '=Last_Import!A2'], ['Ordered Date', '=INDEX(SPLIT(Last_Import!P2, " "), 1, 1)'], 
       ['Subtotal Amount:', subtotalAmount], ['Shipping Amount:', shippingAmount], 
-      ['Taxes:', '=ItemsTax_GST+ItemsTax_PSTorQSTorHST+ShippingTax'], ['Order Total:', '=SUM(OrderSubtotals)']])
+      ['=IF(E5,"Tariffs & Brokerage:", "Taxes:")', '=ItemsTax_GST+ItemsTax_PSTorQSTorHST+ShippingTax'], ['Order Total:', '=SUM(OrderSubtotals)']])
   .offset(3, -7, 1, 1) // PNT Address
     .setValue('3731 Moncton Street, Richmond, BC, V7E 3A5\nPhone: (604) 274-7238 Toll Free: (800) 895-4327\nwww.pacificnetandtwine.com')
   .offset(4, 0, 5) // The value "SHIP" in the header of the packing slip
@@ -960,6 +960,7 @@ function exportData(importData, exportSheet, spreadsheet, shippingAmount, itemVa
     importData = SpreadsheetApp.getActiveSheet().getDataRange().getValues()
   }
 
+  const invoiceSheet = spreadsheet.getSheetByName('Invoice');
   const nCols = importData[0].length;
   const colours = [new Array(nCols).fill('#c9daf8')]; // To highlight the import data alternating by order #
   const numCols = 10; // Number of columns in the export data
@@ -1057,8 +1058,11 @@ function exportData(importData, exportSheet, spreadsheet, shippingAmount, itemVa
   }
 
   // If tariffs go away, comment out this line
-  if (spreadsheet.getRange(5, 5).isChecked())
-    exportData.push(getTariffAndBrokerageLine(spreadsheet.getSheetValues(5, 9, 1, 1)[0][0], country)); // Add a FREIGHT line to the end of the export data
+  if (invoiceSheet.getRange(5, 5).isChecked())
+  {
+    exportData.push(getTariffAndBrokerageLine(invoiceSheet.getSheetValues(5, 9, 1, 1)[0][0], country)); // Add a FREIGHT line to the end of the export data
+    backgrounds.push(new Array(numCols).fill('white'))
+  }
   
   if (exportData.length !== 0)
     exportSheet.getRange(exportSheet.getLastRow() + 1, 1, exportData.length, numCols).setBackgrounds(backgrounds).setValues(exportData);
@@ -1269,7 +1273,26 @@ function setInvoiceValues(orderNumber_Status, spreadsheet)
     const hyperlink = SpreadsheetApp.newTextStyle().setFontSize(11).setUnderline(true).setForegroundColor('#1155cc').build();
     const shipDateRichText = SpreadsheetApp.newRichTextValue().setText('Ship Date: ' + values[0][6]).setTextStyle(0, 10, boldTextStyle).build();
     const richText = SpreadsheetApp.newRichTextValue().setText('').build()
-    const trackingNumberRichText = (values[0][24]) ? (linkUrl) ? SpreadsheetApp.newRichTextValue().setText(values[0][24]).setTextStyle(hyperlink).setLinkUrl(linkUrl).build() : richText : richText;
+    const trackingNumberRichText = (values[0][24]) ? 
+                                      (linkUrl) ? 
+                                        SpreadsheetApp.newRichTextValue().setText(values[0][24]).setTextStyle(hyperlink).setLinkUrl(linkUrl).build() : 
+                                      richText : 
+                                    richText;
+    const shippingCountry = values[0][16].split(',').pop().trim();
+    const country = (isNotBlank(shippingCountry)) ? shippingCountry : values[0][16].split(',').pop().trim();
+    const invoiceSheet = spreadsheet.getSheetByName('Invoice')
+
+    // USA is charged brokerage and tariffs
+    if (country === 'US')
+    {
+      invoiceSheet.getRange(5, 5).check().offset(0, 4).setValue(values[0][11]);
+    }
+    else
+    {
+      invoiceSheet.getRange(5, 5).uncheck().offset(0, 4).setFormula('=ItemsTax_GST+ItemsTax_PSTorQSTorHST+ShippingTax');
+    }
+      
+
     var shippingLocation, billingLocation;
     
     const lastImportData = values.map((item, i) => {
@@ -1317,12 +1340,11 @@ function setInvoiceValues(orderNumber_Status, spreadsheet)
     // Check the shipping country and province, then set the taxes accordingly by checking the appropriate box
     if (isBlank(shippingLocation[1])) // Blank means the item is a pick up in BC, therefore charge 12%
     {
-      
       spreadsheet.getRangeByName('ShippingAmount').setValue(0);
     }
     else
     {
-      if (shippingLocation[3] !== 'CA')
+      if (shippingLocation[3] !== 'CA' && shippingLocation[3] !== '')
         checks[7][0] = 0;
       else
       {
@@ -1356,13 +1378,14 @@ function setInvoiceValues(orderNumber_Status, spreadsheet)
     checkboxRange.setNumberFormat('#').setValues(checks)
     spreadsheet.getRangeByName('Hidden_Checkbox').uncheck(); // This is the checkbox on the Packing Slip that adds 10%
 
-    spreadsheet.getSheetByName('Invoice').activate()
+    invoiceSheet.activate()
       .getRange(4, 9).setValue(values[0][10]) // The shipping Amount
       .offset(10, -7, 1, 1).setValues([[values[0][23]]]) // The shipping method
       .offset(0, 2, 1, 6).setBorder(true, false, true, true, false, false).setRichTextValues([[trackingNumberRichText, richText, richText, shipDateRichText, richText, richText]])
       .offset(3, -3, 32, 9).setValues([...values.map(item => [item[1] + ' x', item[2], item[3], '', '', '', '', item[4], item[5]]), ...new Array(32 - values.length).fill(blankRows)])
 
     spreadsheet.getSheetByName('Last_Import').getRange('A2:CA').clearContent().offset(0, 0, lastImportData.length, lastImportData[0].length).setValues(lastImportData)
+    SpreadsheetApp.flush()
   }
   else
     spreadsheet.toast('This order is not in the ALL COMPLETED ORDERS archive.', 'Order Not Found')
@@ -1426,7 +1449,7 @@ function getShippingLine(data)
  */
 function getTariffAndBrokerageLine(cost, country)
 {
-  return ['D', 'FREIGHT', twoDecimals(cost), 1, 1, (country !== 'CA') ? 4 : 0, ...new Array(4).fill(null)];
+  return ['D', 'BROKERAGE', twoDecimals(cost), 1, 1, (country !== 'CA') ? 4 : 0, ...new Array(4).fill(null)];
 }
 
 /**
@@ -2623,6 +2646,13 @@ function updateInvoice(shopifyData, numRows, numCols, spreadsheet)
   shippingCost.setValue(shopifyData[0][9])
   const checkboxRange = spreadsheet.getRangeByName('Checkboxes'); // These are the checkboxes that control the taxation rate
   const checks = checkboxRange.getValues()
+  const country = (isNotBlank(shopifyData[0][42])) ? shopifyData[0][42].toUpperCase() : shopifyData[0][32].toUpperCase();
+
+  // USA is charged brokerage and tariffs
+  if (country === 'US')
+    invoice.getRange(5, 5).check();
+  else
+    invoice.getRange(5, 5).uncheck();
 
   shopifyData[0][ 1] = shopifyData[0][1].toString().toLowerCase(); // Email
   shopifyData[0][24] = toProper(shopifyData[0][24]); // Billing Name
